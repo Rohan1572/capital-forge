@@ -1,0 +1,6 @@
+.next
+node_modules
+out
+build
+package-lock.json
+capital_forge_project_roadmap.md
