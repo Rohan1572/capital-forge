@@ -9,6 +9,7 @@ export type Allocation = {
   cash: number;
 };
 
+const MONTE_CARLO_ITERATIONS = 10_000;
 const assetKeys = Object.keys(assetReturnAssumptions) as AssetKey[];
 
 function sampleStandardNormal(): number {
@@ -70,14 +71,19 @@ function normalizeAllocation(allocation: Allocation): Record<AssetKey, number> {
   );
 }
 
-export function runMonteCarloSimulation(allocation: Allocation, paths = 10_000): number[] {
+export function runMonteCarloSimulation(allocation: Allocation): number[] {
   const weights = normalizeAllocation(allocation);
+  const outcomes: number[] = [];
 
-  return Array.from({ length: paths }, () => {
+  for (let i = 0; i < MONTE_CARLO_ITERATIONS; i += 1) {
     const yearlyReturns = generateYearlyAssetReturns();
 
-    return assetKeys.reduce((portfolioReturn, key) => {
-      return portfolioReturn + weights[key] * yearlyReturns[key];
+    const portfolioReturn = assetKeys.reduce((total, key) => {
+      return total + weights[key] * yearlyReturns[key];
     }, 0);
-  });
+
+    outcomes.push(portfolioReturn);
+  }
+
+  return outcomes;
 }
