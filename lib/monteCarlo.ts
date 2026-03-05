@@ -21,6 +21,21 @@ function sampleStandardNormal(): number {
   return Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2.0 * Math.PI * v);
 }
 
+export function generateAssetYearlyReturn(asset: AssetKey): number {
+  const { mean, volatility } = assetReturnAssumptions[asset];
+  return mean + volatility * sampleStandardNormal();
+}
+
+export function generateYearlyAssetReturns(): Record<AssetKey, number> {
+  return assetKeys.reduce<Record<AssetKey, number>>(
+    (returns, key) => {
+      returns[key] = generateAssetYearlyReturn(key);
+      return returns;
+    },
+    {} as Record<AssetKey, number>,
+  );
+}
+
 function normalizeAllocation(allocation: Allocation): Record<AssetKey, number> {
   const rawWeights = assetKeys.reduce<Record<AssetKey, number>>(
     (acc, key) => {
@@ -59,10 +74,10 @@ export function runMonteCarloSimulation(allocation: Allocation, paths = 10_000):
   const weights = normalizeAllocation(allocation);
 
   return Array.from({ length: paths }, () => {
+    const yearlyReturns = generateYearlyAssetReturns();
+
     return assetKeys.reduce((portfolioReturn, key) => {
-      const { mean, volatility } = assetReturnAssumptions[key];
-      const sampledReturn = mean + volatility * sampleStandardNormal();
-      return portfolioReturn + weights[key] * sampledReturn;
+      return portfolioReturn + weights[key] * yearlyReturns[key];
     }, 0);
   });
 }
