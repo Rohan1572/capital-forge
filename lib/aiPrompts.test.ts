@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  buildRiskExplainerMarkdown,
   buildRiskExplainerPrompt,
   buildRiskExplainerPromptFromMetrics,
   buildRiskPromptInput,
@@ -109,5 +110,30 @@ describe("buildRiskExplainerPromptFromMetrics", () => {
     expect(prompt).toContain("Sharpe Ratio: 0.5");
     expect(prompt).toContain("Value at Risk (95%): -0.12");
     expect(prompt).toContain("Max Drawdown: 0.2");
+  });
+});
+
+describe("buildRiskExplainerMarkdown", () => {
+  it("returns structured markdown with bullet-point sections", () => {
+    const markdown = buildRiskExplainerMarkdown({
+      allocation: {
+        equity: 35,
+        startups: 20,
+        bonds: 15,
+        gold: 10,
+        crypto: 10,
+        cash: 10,
+      },
+      expectedReturn: 0.11,
+      sharpeRatio: 0.44,
+      valueAtRisk: -0.21,
+      maxDrawdown: 0.31,
+    });
+
+    expect(markdown).toContain("### Overall Assessment");
+    expect(markdown).toContain("### Weaknesses");
+    expect(markdown).toContain("### Allocation Improvements");
+    expect(markdown).toContain("### Downside Risks");
+    expect(markdown).toContain("- Warning:");
   });
 });

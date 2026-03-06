@@ -2,9 +2,12 @@
 
 import { useMemo, useState } from "react";
 import { AllocationSlider } from "@/components/AllocationSlider";
+import { RiskExplainerPanel } from "@/components/RiskExplainerPanel";
 import type { Allocation } from "@/lib/monteCarlo";
 import { runMonteCarloSimulation } from "@/lib/monteCarlo";
 import { SimulationChart } from "@/components/SimulationChart";
+import { computeSimulationMetrics } from "@/lib/metrics";
+import { buildRiskExplainerMarkdown, buildRiskPromptInput } from "@/lib/aiPrompts";
 
 const assetConfig: { key: keyof Allocation; label: string }[] = [
   { key: "equity", label: "Equity" },
@@ -27,6 +30,7 @@ const defaultAllocation: Allocation = {
 export default function SimulatePage() {
   const [allocation, setAllocation] = useState<Allocation>(defaultAllocation);
   const [simulationResults, setSimulationResults] = useState<number[] | null>(null);
+  const [aiRiskMarkdown, setAiRiskMarkdown] = useState<string | null>(null);
   const [isSimulating, setIsSimulating] = useState(false);
 
   const totalAllocation = useMemo(() => {
@@ -52,7 +56,12 @@ export default function SimulatePage() {
     await new Promise<void>((resolve) => setTimeout(resolve, 0));
 
     const outcomes = runMonteCarloSimulation(allocation);
+    const metrics = computeSimulationMetrics(outcomes);
+    const promptInput = buildRiskPromptInput(allocation, metrics);
+    const aiOutput = buildRiskExplainerMarkdown(promptInput);
+
     setSimulationResults(outcomes);
+    setAiRiskMarkdown(aiOutput);
     setIsSimulating(false);
   }
 
@@ -111,6 +120,7 @@ export default function SimulatePage() {
       ) : null}
 
       {simulationResults ? <SimulationChart values={simulationResults} /> : null}
+      {aiRiskMarkdown ? <RiskExplainerPanel markdown={aiRiskMarkdown} /> : null}
     </main>
   );
 }

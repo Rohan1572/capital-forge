@@ -44,3 +44,81 @@ export function buildRiskExplainerPromptFromMetrics(
 ): string {
   return buildRiskExplainerPrompt(buildRiskPromptInput(allocation, metrics));
 }
+
+function topAllocatedAssets(allocation: Allocation, count = 2): [string, number][] {
+  return Object.entries(allocation)
+    .sort(([, a], [, b]) => b - a)
+    .slice(0, count);
+}
+
+export function buildRiskExplainerMarkdown(input: RiskPromptInput): string {
+  const topAssets = topAllocatedAssets(input.allocation)
+    .map(([asset, weight]) => `${asset} (${weight}%)`)
+    .join(", ");
+
+  const weaknesses: string[] = [];
+  if (input.sharpeRatio < 0.5) {
+    weaknesses.push(
+      `Risk-adjusted performance is weak (Sharpe ${input.sharpeRatio.toFixed(2)}), indicating return quality may not justify volatility.`,
+    );
+  }
+  if (input.valueAtRisk <= -0.2) {
+    weaknesses.push(
+      `Tail-loss profile is elevated (VaR 95% ${Math.abs(input.valueAtRisk * 100).toFixed(1)}%), suggesting meaningful downside in stress periods.`,
+    );
+  }
+  if (input.maxDrawdown >= 0.3) {
+    weaknesses.push(
+      `Drawdown depth is high (max drawdown ${(input.maxDrawdown * 100).toFixed(1)}%), which can pressure risk tolerance and capital preservation.`,
+    );
+  }
+  if (weaknesses.length === 0) {
+    weaknesses.push(
+      "No single metric is critically weak, but concentration and tail-risk management still require monitoring.",
+    );
+  }
+
+  const improvements: string[] = [];
+  const growthAllocation = input.allocation.startups + input.allocation.crypto;
+  if (growthAllocation > 25) {
+    improvements.push(
+      "Reduce combined Startups/Crypto by 5-10% and reallocate to Bonds or Cash to improve downside protection.",
+    );
+  }
+  if (input.allocation.bonds < 15 && input.maxDrawdown >= 0.25) {
+    improvements.push(
+      "Increase Bonds allocation to strengthen defensive ballast during adverse return regimes.",
+    );
+  }
+  if (input.allocation.cash > 20 && input.expectedReturn < 0.1) {
+    improvements.push(
+      "Trim excess Cash and redeploy gradually into diversified risk assets to lift expected return.",
+    );
+  }
+  if (improvements.length === 0) {
+    improvements.push(
+      "Keep core weights stable and rebalance quarterly to maintain target risk exposures.",
+    );
+  }
+
+  const downsideRisks = [
+    `Warning: Historical-style stress can exceed VaR assumptions; a 95% VaR of ${(input.valueAtRisk * 100).toFixed(1)}% still leaves 5% tail outcomes potentially worse.`,
+    `Warning: A drawdown profile of ${(input.maxDrawdown * 100).toFixed(1)}% can force unfavorable de-risking if liquidity needs rise.`,
+    `Warning: Current concentration in ${topAssets} may amplify correlation shocks during market dislocations.`,
+  ];
+
+  return [
+    "### Overall Assessment",
+    `- Expected return is ${(input.expectedReturn * 100).toFixed(2)}% with Sharpe ${input.sharpeRatio.toFixed(2)}.`,
+    `- The portfolio currently tilts toward ${topAssets}.`,
+    "",
+    "### Weaknesses",
+    ...weaknesses.map((item) => `- ${item}`),
+    "",
+    "### Allocation Improvements",
+    ...improvements.map((item) => `- ${item}`),
+    "",
+    "### Downside Risks",
+    ...downsideRisks.map((item) => `- ${item}`),
+  ].join("\n");
+}
