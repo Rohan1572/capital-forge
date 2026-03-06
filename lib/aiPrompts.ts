@@ -25,7 +25,11 @@ export function buildRiskPromptInput(
 export function buildRiskExplainerPrompt(input: RiskPromptInput): string {
   return [
     "You are a portfolio risk analyst.",
-    "Evaluate the strategy and provide concise, practical improvements.",
+    "Use a professional tone suitable for an investment committee memo.",
+    "Identify portfolio weaknesses using the provided metrics and allocation mix.",
+    "Suggest specific allocation improvements with practical rationale.",
+    "Clearly highlight downside risks, including tail-risk implications from VaR and drawdown.",
+    "Respond in concise bullet points under these headings: Overall Assessment, Weaknesses, Allocation Improvements, Downside Risks.",
     `Allocation: ${JSON.stringify(input.allocation)}`,
     `Expected Return: ${input.expectedReturn}`,
     `Sharpe Ratio: ${input.sharpeRatio}`,

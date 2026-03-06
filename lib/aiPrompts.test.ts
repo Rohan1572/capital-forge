@@ -60,6 +60,28 @@ describe("buildRiskExplainerPrompt", () => {
     expect(prompt).toContain("Value at Risk (95%): -0.16");
     expect(prompt).toContain("Max Drawdown: 0.24");
   });
+
+  it("includes explainer instructions for tone, weaknesses, improvements, and downside risk", () => {
+    const prompt = buildRiskExplainerPrompt({
+      allocation: {
+        equity: 35,
+        startups: 20,
+        bonds: 15,
+        gold: 10,
+        crypto: 10,
+        cash: 10,
+      },
+      expectedReturn: 0.15,
+      sharpeRatio: 0.48,
+      valueAtRisk: -0.22,
+      maxDrawdown: 0.33,
+    });
+
+    expect(prompt).toContain("professional tone");
+    expect(prompt).toContain("Identify portfolio weaknesses");
+    expect(prompt).toContain("Suggest specific allocation improvements");
+    expect(prompt).toContain("Clearly highlight downside risks");
+  });
 });
 
 describe("buildRiskExplainerPromptFromMetrics", () => {
