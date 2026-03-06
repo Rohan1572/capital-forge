@@ -1,12 +1,26 @@
 import type { Allocation } from "@/lib/monteCarlo";
+import type { SimulationMetrics } from "@/lib/metrics";
 
-type RiskPromptInput = {
+export type RiskPromptInput = {
   allocation: Allocation;
   expectedReturn: number;
   sharpeRatio: number;
   valueAtRisk: number;
   maxDrawdown: number;
 };
+
+export function buildRiskPromptInput(
+  allocation: Allocation,
+  metrics: SimulationMetrics,
+): RiskPromptInput {
+  return {
+    allocation,
+    expectedReturn: metrics.expectedReturn,
+    sharpeRatio: metrics.sharpeRatio,
+    valueAtRisk: metrics.valueAtRisk5,
+    maxDrawdown: metrics.maxDrawdown,
+  };
+}
 
 export function buildRiskExplainerPrompt(input: RiskPromptInput): string {
   return [
@@ -18,4 +32,11 @@ export function buildRiskExplainerPrompt(input: RiskPromptInput): string {
     `Value at Risk (95%): ${input.valueAtRisk}`,
     `Max Drawdown: ${input.maxDrawdown}`,
   ].join("\n");
+}
+
+export function buildRiskExplainerPromptFromMetrics(
+  allocation: Allocation,
+  metrics: SimulationMetrics,
+): string {
+  return buildRiskExplainerPrompt(buildRiskPromptInput(allocation, metrics));
 }
