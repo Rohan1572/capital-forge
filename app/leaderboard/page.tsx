@@ -18,6 +18,13 @@ type LeaderboardEntry = {
   rank: number;
 };
 
+type Pagination = {
+  page: number;
+  pageSize: number;
+  total: number;
+  totalPages: number;
+};
+
 function formatPercent(value?: number) {
   if (typeof value !== "number") return "--";
   return `${(value * 100).toFixed(2)}%`;
@@ -36,26 +43,50 @@ export default function LeaderboardPage() {
   const [entries, setEntries] = useState<LeaderboardEntry[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [pagination, setPagination] = useState<Pagination>({
+    page: 1,
+    pageSize: 25,
+    total: 0,
+    totalPages: 1,
+  });
 
   useEffect(() => {
     async function load() {
       setIsLoading(true);
       setError(null);
 
-      const response = await fetch("/api/leaderboard");
+      const response = await fetch(
+        `/api/leaderboard?page=${pagination.page}&pageSize=${pagination.pageSize}`,
+      );
       if (!response.ok) {
         setError("Unable to load leaderboard.");
         setIsLoading(false);
         return;
       }
 
-      const payload = (await response.json()) as { data: LeaderboardEntry[] };
+      const payload = (await response.json()) as {
+        data: LeaderboardEntry[];
+        pagination: Pagination;
+      };
       setEntries(payload.data ?? []);
+      if (payload.pagination) {
+        setPagination((current) => ({
+          ...current,
+          ...payload.pagination,
+        }));
+      }
       setIsLoading(false);
     }
 
     load();
-  }, []);
+  }, [pagination.page, pagination.pageSize]);
+
+  function setPage(nextPage: number) {
+    setPagination((current) => ({
+      ...current,
+      page: Math.min(Math.max(nextPage, 1), current.totalPages),
+    }));
+  }
 
   return (
     <main className="mx-auto flex min-h-screen w-full max-w-6xl flex-col gap-6 px-6 py-12">
@@ -113,6 +144,29 @@ export default function LeaderboardPage() {
                 ))}
               </tbody>
             </table>
+          </div>
+          <div className="flex flex-wrap items-center justify-between gap-3 border-t border-zinc-800 px-4 py-3 text-xs text-zinc-400">
+            <p>
+              Page {pagination.page} of {pagination.totalPages} · {pagination.total} total
+            </p>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setPage(pagination.page - 1)}
+                disabled={pagination.page <= 1}
+                className="rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-1.5 text-xs text-zinc-200 transition hover:border-zinc-500 disabled:cursor-not-allowed disabled:border-zinc-800 disabled:text-zinc-500"
+              >
+                Previous
+              </button>
+              <button
+                type="button"
+                onClick={() => setPage(pagination.page + 1)}
+                disabled={pagination.page >= pagination.totalPages}
+                className="rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-1.5 text-xs text-zinc-200 transition hover:border-zinc-500 disabled:cursor-not-allowed disabled:border-zinc-800 disabled:text-zinc-500"
+              >
+                Next
+              </button>
+            </div>
           </div>
         </section>
       ) : null}

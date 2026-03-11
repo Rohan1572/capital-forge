@@ -43,12 +43,28 @@ function compareStrategies(a: LeaderboardEntry, b: LeaderboardEntry) {
   return a.createdAt.localeCompare(b.createdAt);
 }
 
-export async function GET() {
-  const strategies = await prisma.strategy.findMany({
-    include: { user: true },
-    take: 200,
-    orderBy: { createdAt: "desc" },
-  });
+function parsePositiveInt(value: string | null, fallback: number) {
+  if (!value) return fallback;
+  const parsed = Number.parseInt(value, 10);
+  if (!Number.isFinite(parsed) || parsed <= 0) return fallback;
+  return parsed;
+}
+
+export async function GET(request: Request) {
+  const url = new URL(request.url);
+  const page = parsePositiveInt(url.searchParams.get("page"), 1);
+  const pageSize = Math.min(parsePositiveInt(url.searchParams.get("pageSize"), 25), 100);
+  const skip = (page - 1) * pageSize;
+
+  const [total, strategies] = await Promise.all([
+    prisma.strategy.count(),
+    prisma.strategy.findMany({
+      include: { user: true },
+      orderBy: { createdAt: "desc" },
+      skip,
+      take: pageSize,
+    }),
+  ]);
 
   const entries: LeaderboardEntry[] = strategies.map((strategy) => ({
     id: strategy.id,
@@ -66,5 +82,13 @@ export async function GET() {
     rank: index + 1,
   }));
 
-  return NextResponse.json({ data: ranked });
+  return NextResponse.json({
+    data: ranked,
+    pagination: {
+      page,
+      pageSize,
+      total,
+      totalPages: Math.max(1, Math.ceil(total / pageSize)),
+    },
+  });
 }
