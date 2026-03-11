@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { runDebateSequence } from "./debateEngine";
+import { parseDebateSections, runDebateSequence } from "./debateEngine";
 import type { Allocation } from "./monteCarlo";
 import type { SimulationMetrics } from "./metrics";
 import type { DebateAgentRole } from "./aiPrompts";
@@ -61,5 +61,30 @@ describe("runDebateSequence", () => {
     });
 
     expect(result.calls.map((call) => call.role)).toEqual(order);
+  });
+});
+
+describe("parseDebateSections", () => {
+  it("extracts sections with bullet normalization", () => {
+    const text = [
+      "Opening Statement",
+      "- First point",
+      "- Second point",
+      "Counter Arguments",
+      "1. Response to agent 1",
+      "Final Recommendation",
+      "Increase bonds by 5%",
+    ].join("\n");
+
+    const sections = parseDebateSections(text);
+
+    expect(sections.openingStatements).toEqual(["First point", "Second point"]);
+    expect(sections.counterArguments).toEqual(["Response to agent 1"]);
+    expect(sections.finalRecommendation).toEqual(["Increase bonds by 5%"]);
+  });
+
+  it("falls back to opening statements when no headings exist", () => {
+    const sections = parseDebateSections("Hold steady and rebalance quarterly.");
+    expect(sections.openingStatements).toEqual(["Hold steady and rebalance quarterly."]);
   });
 });
