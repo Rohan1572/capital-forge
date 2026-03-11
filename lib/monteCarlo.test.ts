@@ -1,34 +1,10 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import { simulationRegimes } from "./assetAssumptions";
 import { baseCorrelationMatrix } from "./correlationMatrix";
 import { mean, probabilityOfLossOverThreshold, standardDeviation, valueAtRisk } from "./metrics";
 import { generateYearlyAssetReturns, runMonteCarloSimulation } from "./monteCarlo";
 
 const SAMPLE_SIZE = 20_000;
-
-function createSeededRandom(seed: number): () => number {
-  let state = seed % 2147483647;
-  if (state <= 0) state += 2147483646;
-
-  return () => {
-    state = (state * 48271) % 2147483647;
-    return state / 2147483647;
-  };
-}
-
-function withDeterministicRandom<T>(seed: number, run: () => T): T {
-  const random = createSeededRandom(seed);
-  const spy = vi.spyOn(Math, "random").mockImplementation(() => {
-    const value = random();
-    return value === 0 ? 1e-12 : value;
-  });
-
-  try {
-    return run();
-  } finally {
-    spy.mockRestore();
-  }
-}
 
 function correlation(valuesA: number[], valuesB: number[]): number {
   if (valuesA.length === 0 || valuesB.length === 0 || valuesA.length !== valuesB.length) {
@@ -57,12 +33,13 @@ function correlation(valuesA: number[], valuesB: number[]): number {
 
 describe("generateYearlyAssetReturns", () => {
   it("produces returns that respect the base correlation matrix", () => {
+    const baseSeed = 1337;
     const equitySamples: number[] = [];
     const startupSamples: number[] = [];
     const bondSamples: number[] = [];
 
     for (let i = 0; i < SAMPLE_SIZE; i += 1) {
-      const returns = generateYearlyAssetReturns();
+      const returns = generateYearlyAssetReturns(undefined, baseSeed + i);
       equitySamples.push(returns.equity);
       startupSamples.push(returns.startups);
       bondSamples.push(returns.bonds);
@@ -89,16 +66,17 @@ describe("runMonteCarloSimulation crash regime", () => {
       cash: 5,
     };
 
-    const baselineOutcomes = withDeterministicRandom(4242, () =>
-      runMonteCarloSimulation(allocation, undefined, {
+    const baselineOutcomes = runMonteCarloSimulation(
+      allocation,
+      undefined,
+      {
         ...simulationRegimes,
         crash: { ...simulationRegimes.crash, probability: 0 },
-      }),
+      },
+      4242,
     );
 
-    const crashOutcomes = withDeterministicRandom(4242, () =>
-      runMonteCarloSimulation(allocation, undefined, simulationRegimes),
-    );
+    const crashOutcomes = runMonteCarloSimulation(allocation, undefined, simulationRegimes, 4242);
 
     const baselineVar5 = valueAtRisk(baselineOutcomes, 0.05);
     const crashVar5 = valueAtRisk(crashOutcomes, 0.05);

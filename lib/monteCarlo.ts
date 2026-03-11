@@ -77,23 +77,50 @@ function choleskyDecomposition(matrix: number[][]): number[][] {
 const baseCorrelationArray = buildCorrelationArray(baseCorrelationMatrix);
 const baseCholesky = choleskyDecomposition(baseCorrelationArray);
 
-function sampleStandardNormal(): number {
+type RandomSource = () => number;
+
+function createSeededRandom(seed: number): RandomSource {
+  let state = seed % 2147483647;
+  if (state <= 0) state += 2147483646;
+
+  return () => {
+    state = (state * 48271) % 2147483647;
+    return state / 2147483647;
+  };
+}
+
+function resolveRandomSource(seed?: number): RandomSource {
+  if (seed === undefined) {
+    return Math.random;
+  }
+
+  return createSeededRandom(seed);
+}
+
+function nextRandomValue(random: RandomSource): number {
+  const value = random();
+  if (value <= 0) return Number.EPSILON;
+  if (value >= 1) return 1 - Number.EPSILON;
+  return value;
+}
+
+function sampleStandardNormal(random: RandomSource): number {
   let u = 0;
   let v = 0;
 
-  while (u === 0) u = Math.random();
-  while (v === 0) v = Math.random();
+  while (u === 0) u = nextRandomValue(random);
+  while (v === 0) v = nextRandomValue(random);
 
   return Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2.0 * Math.PI * v);
 }
 
-function generateCorrelatedStandardNormals(cholesky: number[][]): number[] {
+function generateCorrelatedStandardNormals(cholesky: number[][], random: RandomSource): number[] {
   const size = cholesky.length;
   const independent = new Array<number>(size);
   const correlated = new Array<number>(size);
 
   for (let i = 0; i < size; i += 1) {
-    independent[i] = sampleStandardNormal();
+    independent[i] = sampleStandardNormal(random);
   }
 
   for (let i = 0; i < size; i += 1) {
@@ -123,16 +150,20 @@ function buildAssumptionArrays(assumptions: AssetReturnAssumptions) {
 export function generateAssetYearlyReturn(
   asset: AssetKey,
   assumptions: AssetReturnAssumptions = assetReturnAssumptions,
+  seed?: number,
 ): number {
   const { mean, volatility } = assumptions[asset];
-  return mean + volatility * sampleStandardNormal();
+  const random = resolveRandomSource(seed);
+  return mean + volatility * sampleStandardNormal(random);
 }
 
 export function generateYearlyAssetReturns(
   assumptions: AssetReturnAssumptions = assetReturnAssumptions,
+  seed?: number,
 ): Record<AssetKey, number> {
   const { means, volatilities } = buildAssumptionArrays(assumptions);
-  const samples = generateCorrelatedStandardNormals(baseCholesky);
+  const random = resolveRandomSource(seed);
+  const samples = generateCorrelatedStandardNormals(baseCholesky, random);
 
   return assetKeys.reduce<Record<AssetKey, number>>(
     (returns, key, index) => {
@@ -181,6 +212,7 @@ export function runMonteCarloSimulation(
   allocation: Allocation,
   assumptions: AssetReturnAssumptions = assetReturnAssumptions,
   regimes: SimulationRegimes = simulationRegimes,
+  seed?: number,
 ): number[] {
   const weights = normalizeAllocation(allocation);
   const weightArray = new Array<number>(assetKeys.length);
@@ -195,11 +227,12 @@ export function runMonteCarloSimulation(
   }
 
   const outcomes = new Array<number>(MONTE_CARLO_ITERATIONS);
+  const random = resolveRandomSource(seed);
 
   for (let iteration = 0; iteration < MONTE_CARLO_ITERATIONS; iteration += 1) {
     let portfolioReturn = 0;
-    const isCrash = Math.random() < crashProbability;
-    const samples = generateCorrelatedStandardNormals(baseCholesky);
+    const isCrash = random() < crashProbability;
+    const samples = generateCorrelatedStandardNormals(baseCholesky, random);
 
     for (let assetIndex = 0; assetIndex < assetKeys.length; assetIndex += 1) {
       const assetKey = assetKeys[assetIndex];
@@ -224,7 +257,8 @@ export function runMonteCarloSimulationWithShock(
   shock: ShockParameters,
   baseAssumptions: AssetReturnAssumptions = assetReturnAssumptions,
   regimes: SimulationRegimes = simulationRegimes,
+  seed?: number,
 ): number[] {
   const shockedAssumptions = applyShockToAssumptions(baseAssumptions, shock);
-  return runMonteCarloSimulation(allocation, shockedAssumptions, regimes);
+  return runMonteCarloSimulation(allocation, shockedAssumptions, regimes, seed);
 }
