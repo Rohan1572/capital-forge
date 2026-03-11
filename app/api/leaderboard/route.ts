@@ -51,44 +51,49 @@ function parsePositiveInt(value: string | null, fallback: number) {
 }
 
 export async function GET(request: Request) {
-  const url = new URL(request.url);
-  const page = parsePositiveInt(url.searchParams.get("page"), 1);
-  const pageSize = Math.min(parsePositiveInt(url.searchParams.get("pageSize"), 25), 100);
-  const skip = (page - 1) * pageSize;
+  try {
+    const url = new URL(request.url);
+    const page = parsePositiveInt(url.searchParams.get("page"), 1);
+    const pageSize = Math.min(parsePositiveInt(url.searchParams.get("pageSize"), 25), 100);
+    const skip = (page - 1) * pageSize;
 
-  const [total, strategies] = await Promise.all([
-    prisma.strategy.count(),
-    prisma.strategy.findMany({
-      include: { user: true },
-      orderBy: { createdAt: "desc" },
-      skip,
-      take: pageSize,
-    }),
-  ]);
+    const [total, strategies] = await Promise.all([
+      prisma.strategy.count(),
+      prisma.strategy.findMany({
+        include: { user: true },
+        orderBy: { createdAt: "desc" },
+        skip,
+        take: pageSize,
+      }),
+    ]);
 
-  const entries: LeaderboardEntry[] = strategies.map((strategy) => ({
-    id: strategy.id,
-    userId: strategy.userId,
-    name: getName(strategy.user),
-    metrics: (strategy.metrics as StrategyMetrics) ?? {},
-    createdAt: strategy.createdAt.toISOString(),
-    rank: 0,
-  }));
+    const entries: LeaderboardEntry[] = strategies.map((strategy) => ({
+      id: strategy.id,
+      userId: strategy.userId,
+      name: getName(strategy.user),
+      metrics: (strategy.metrics as StrategyMetrics) ?? {},
+      createdAt: strategy.createdAt.toISOString(),
+      rank: 0,
+    }));
 
-  entries.sort(compareStrategies);
+    entries.sort(compareStrategies);
 
-  const ranked = entries.map((entry, index) => ({
-    ...entry,
-    rank: index + 1,
-  }));
+    const ranked = entries.map((entry, index) => ({
+      ...entry,
+      rank: index + 1,
+    }));
 
-  return NextResponse.json({
-    data: ranked,
-    pagination: {
-      page,
-      pageSize,
-      total,
-      totalPages: Math.max(1, Math.ceil(total / pageSize)),
-    },
-  });
+    return NextResponse.json({
+      data: ranked,
+      pagination: {
+        page,
+        pageSize,
+        total,
+        totalPages: Math.max(1, Math.ceil(total / pageSize)),
+      },
+    });
+  } catch (error) {
+    console.error("Failed to load leaderboard", error);
+    return NextResponse.json({ error: "Unable to load leaderboard." }, { status: 500 });
+  }
 }

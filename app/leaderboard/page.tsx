@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { SkeletonBlock, SkeletonStack } from "@/components/LoadingSkeleton";
 
 type LeaderboardMetrics = {
   expectedReturn?: number;
@@ -55,27 +56,33 @@ export default function LeaderboardPage() {
       setIsLoading(true);
       setError(null);
 
-      const response = await fetch(
-        `/api/leaderboard?page=${pagination.page}&pageSize=${pagination.pageSize}`,
-      );
-      if (!response.ok) {
-        setError("Unable to load leaderboard.");
-        setIsLoading(false);
-        return;
-      }
+      try {
+        const response = await fetch(
+          `/api/leaderboard?page=${pagination.page}&pageSize=${pagination.pageSize}`,
+        );
+        if (!response.ok) {
+          setError("Unable to load leaderboard.");
+          setIsLoading(false);
+          return;
+        }
 
-      const payload = (await response.json()) as {
-        data: LeaderboardEntry[];
-        pagination: Pagination;
-      };
-      setEntries(payload.data ?? []);
-      if (payload.pagination) {
-        setPagination((current) => ({
-          ...current,
-          ...payload.pagination,
-        }));
+        const payload = (await response.json()) as {
+          data: LeaderboardEntry[];
+          pagination: Pagination;
+        };
+        setEntries(payload.data ?? []);
+        if (payload.pagination) {
+          setPagination((current) => ({
+            ...current,
+            ...payload.pagination,
+          }));
+        }
+      } catch (err) {
+        console.error("Failed to load leaderboard", err);
+        setError("Unable to load leaderboard.");
+      } finally {
+        setIsLoading(false);
       }
-      setIsLoading(false);
     }
 
     load();
@@ -100,6 +107,10 @@ export default function LeaderboardPage() {
       {isLoading ? (
         <section className="rounded-xl border border-zinc-800 bg-zinc-900/80 p-6">
           <p className="text-sm text-zinc-300">Loading leaderboard...</p>
+          <div className="mt-4 space-y-4">
+            <SkeletonBlock className="h-14" />
+            <SkeletonStack rows={6} />
+          </div>
         </section>
       ) : null}
 

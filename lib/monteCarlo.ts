@@ -27,6 +27,19 @@ function sampleStandardNormal(): number {
   return Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2.0 * Math.PI * v);
 }
 
+function buildAssumptionArrays(assumptions: AssetReturnAssumptions) {
+  const means = new Array<number>(assetKeys.length);
+  const volatilities = new Array<number>(assetKeys.length);
+
+  for (let i = 0; i < assetKeys.length; i += 1) {
+    const key = assetKeys[i];
+    means[i] = assumptions[key].mean;
+    volatilities[i] = assumptions[key].volatility;
+  }
+
+  return { means, volatilities };
+}
+
 export function generateAssetYearlyReturn(
   asset: AssetKey,
   assumptions: AssetReturnAssumptions = assetReturnAssumptions,
@@ -86,16 +99,25 @@ export function runMonteCarloSimulation(
   assumptions: AssetReturnAssumptions = assetReturnAssumptions,
 ): number[] {
   const weights = normalizeAllocation(allocation);
-  const outcomes: number[] = [];
+  const weightArray = new Array<number>(assetKeys.length);
+  const { means, volatilities } = buildAssumptionArrays(assumptions);
 
-  for (let i = 0; i < MONTE_CARLO_ITERATIONS; i += 1) {
-    const yearlyReturns = generateYearlyAssetReturns(assumptions);
+  for (let i = 0; i < assetKeys.length; i += 1) {
+    weightArray[i] = weights[assetKeys[i]];
+  }
 
-    const portfolioReturn = assetKeys.reduce((total, key) => {
-      return total + weights[key] * yearlyReturns[key];
-    }, 0);
+  const outcomes = new Array<number>(MONTE_CARLO_ITERATIONS);
 
-    outcomes.push(portfolioReturn);
+  for (let iteration = 0; iteration < MONTE_CARLO_ITERATIONS; iteration += 1) {
+    let portfolioReturn = 0;
+
+    for (let assetIndex = 0; assetIndex < assetKeys.length; assetIndex += 1) {
+      const sample = sampleStandardNormal();
+      portfolioReturn +=
+        weightArray[assetIndex] * (means[assetIndex] + volatilities[assetIndex] * sample);
+    }
+
+    outcomes[iteration] = portfolioReturn;
   }
 
   return outcomes;

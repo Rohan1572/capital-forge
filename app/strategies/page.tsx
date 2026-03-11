@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { SkeletonBlock, SkeletonStack } from "@/components/LoadingSkeleton";
 import type { Allocation } from "@/lib/monteCarlo";
 import type { SimulationMetrics } from "@/lib/metrics";
 
@@ -41,16 +42,22 @@ export default function StrategyHistoryPage() {
       setIsLoading(true);
       setError(null);
 
-      const response = await fetch("/api/strategies", { credentials: "include" });
-      if (!response.ok) {
-        setError("Unable to load strategy history.");
-        setIsLoading(false);
-        return;
-      }
+      try {
+        const response = await fetch("/api/strategies", { credentials: "include" });
+        if (!response.ok) {
+          setError("Unable to load strategy history.");
+          setIsLoading(false);
+          return;
+        }
 
-      const payload = (await response.json()) as { data: StrategyRecord[] };
-      setStrategies(payload.data ?? []);
-      setIsLoading(false);
+        const payload = (await response.json()) as { data: StrategyRecord[] };
+        setStrategies(payload.data ?? []);
+      } catch (err) {
+        console.error("Failed to load strategies", err);
+        setError("Unable to load strategy history.");
+      } finally {
+        setIsLoading(false);
+      }
     }
 
     load();
@@ -75,19 +82,27 @@ export default function StrategyHistoryPage() {
   async function handleDelete(id: string) {
     if (deletingId) return;
     setDeletingId(id);
+    setError(null);
 
-    const response = await fetch("/api/strategies", {
-      method: "DELETE",
-      headers: { "Content-Type": "application/json" },
-      credentials: "include",
-      body: JSON.stringify({ id }),
-    });
+    try {
+      const response = await fetch("/api/strategies", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ id }),
+      });
 
-    if (response.ok) {
-      setStrategies((current) => current.filter((strategy) => strategy.id !== id));
+      if (response.ok) {
+        setStrategies((current) => current.filter((strategy) => strategy.id !== id));
+      } else {
+        setError("Unable to delete that strategy.");
+      }
+    } catch (err) {
+      console.error("Failed to delete strategy", err);
+      setError("Unable to delete that strategy.");
+    } finally {
+      setDeletingId(null);
     }
-
-    setDeletingId(null);
   }
 
   return (
@@ -110,6 +125,14 @@ export default function StrategyHistoryPage() {
       {isLoading ? (
         <section className="rounded-xl border border-zinc-800 bg-zinc-900/80 p-6">
           <p className="text-sm text-zinc-300">Loading strategies...</p>
+          <div className="mt-4 space-y-4">
+            <div className="grid gap-4 md:grid-cols-3">
+              <SkeletonBlock className="h-20" />
+              <SkeletonBlock className="h-20" />
+              <SkeletonBlock className="h-20" />
+            </div>
+            <SkeletonStack rows={5} />
+          </div>
         </section>
       ) : null}
 
