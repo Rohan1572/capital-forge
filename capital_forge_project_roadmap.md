@@ -475,11 +475,16 @@ User can:
 
 ## 6.1 Define Ranking Formula
 Primary ranking metric:
-- Sharpe ratio
+- Sharpe ratio = (mean portfolio return - risk-free rate) / standard deviation
 
-Tie-breakers:
-- Lower drawdown
-- Lower VaR
+Computation notes:
+- Use annualized returns from Monte Carlo simulation
+- Risk-free rate default: 4% (configurable)
+- Higher Sharpe ranks higher
+
+Tie-breakers (in order):
+- Lower max drawdown
+- Lower VaR (5% percentile)
 
 ## 6.2 Create Leaderboard Page
 Display:
@@ -582,4 +587,3 @@ Before launch ensure:
 ---
 
 END OF DOCUMENT
-
