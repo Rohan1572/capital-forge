@@ -1,7 +1,9 @@
 import {
   assetReturnAssumptions,
+  simulationRegimes,
   type AssetKey,
   type AssetReturnAssumptions,
+  type SimulationRegimes,
 } from "@/lib/assetAssumptions";
 import {
   baseCorrelationMatrix,
@@ -178,10 +180,15 @@ function normalizeAllocation(allocation: Allocation): Record<AssetKey, number> {
 export function runMonteCarloSimulation(
   allocation: Allocation,
   assumptions: AssetReturnAssumptions = assetReturnAssumptions,
+  regimes: SimulationRegimes = simulationRegimes,
 ): number[] {
   const weights = normalizeAllocation(allocation);
   const weightArray = new Array<number>(assetKeys.length);
   const { means, volatilities } = buildAssumptionArrays(assumptions);
+  const crashConfig = regimes.crash;
+  const crashProbability = Math.min(Math.max(crashConfig.probability, 0), 1);
+  const crashVolatilityMultiplier = Math.max(crashConfig.volatilityMultiplier, 0);
+  const crashShocks = crashConfig.shocks;
 
   for (let i = 0; i < assetKeys.length; i += 1) {
     weightArray[i] = weights[assetKeys[i]];
@@ -191,12 +198,19 @@ export function runMonteCarloSimulation(
 
   for (let iteration = 0; iteration < MONTE_CARLO_ITERATIONS; iteration += 1) {
     let portfolioReturn = 0;
+    const isCrash = Math.random() < crashProbability;
     const samples = generateCorrelatedStandardNormals(baseCholesky);
 
     for (let assetIndex = 0; assetIndex < assetKeys.length; assetIndex += 1) {
+      const assetKey = assetKeys[assetIndex];
+      const crashShock = isCrash ? crashShocks[assetKey] : undefined;
+      const volatility =
+        crashShock === undefined
+          ? volatilities[assetIndex]
+          : volatilities[assetIndex] * crashVolatilityMultiplier;
       portfolioReturn +=
         weightArray[assetIndex] *
-        (means[assetIndex] + volatilities[assetIndex] * samples[assetIndex]);
+        (means[assetIndex] + volatility * samples[assetIndex] + (crashShock ?? 0));
     }
 
     outcomes[iteration] = portfolioReturn;
@@ -209,7 +223,8 @@ export function runMonteCarloSimulationWithShock(
   allocation: Allocation,
   shock: ShockParameters,
   baseAssumptions: AssetReturnAssumptions = assetReturnAssumptions,
+  regimes: SimulationRegimes = simulationRegimes,
 ): number[] {
   const shockedAssumptions = applyShockToAssumptions(baseAssumptions, shock);
-  return runMonteCarloSimulation(allocation, shockedAssumptions);
+  return runMonteCarloSimulation(allocation, shockedAssumptions, regimes);
 }
