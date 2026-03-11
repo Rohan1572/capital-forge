@@ -2,6 +2,8 @@ import Link from "next/link";
 
 export default function Home() {
   const routes = [
+    { href: "/login", label: "Sign in" },
+    { href: "/register", label: "Create account" },
     { href: "/dashboard", label: "Dashboard" },
     { href: "/simulate", label: "Simulate" },
     { href: "/leaderboard", label: "Leaderboard" },
