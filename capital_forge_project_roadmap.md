@@ -18,6 +18,26 @@ Goal: Build a flagship MBA-level, quant-driven, AI-native product.
 
 ---
 
+# AI Interpretation Guide
+
+Use this document as a product and engineering roadmap. When implementing, prioritize:
+- Deterministic, testable quant outputs over UI polish.
+- Clear API contracts before UI integration.
+- Reproducible simulations (seeded runs) and auditable assumptions.
+- Strictly structured AI outputs (schema-validated JSON).
+
+Definition of "MBA-level, quant-driven, AI-native":
+- MBA-level: professional finance tone, clear assumptions, and decision framing.
+- Quant-driven: metrics-led, Monte Carlo-based evaluation with reproducible results.
+- AI-native: LLMs are used for critique, scenario generation, and debate, but never as the source of numeric truth.
+
+Non-goals:
+- Real-world investment advice.
+- Live trading or brokerage integration.
+- Unverifiable or opaque AI outputs.
+
+---
+
 # 🧱 Overall Architecture
 
 ## Frontend
@@ -80,7 +100,7 @@ The platform must compute:
 - Correlation Matrix
 - Probability of 30%+ Loss
 
-These metrics will power leaderboard ranking and AI analysis.
+These metrics power leaderboard ranking, AI analysis, and user-facing risk explanations.
 
 ---
 
@@ -568,8 +588,10 @@ Render in chat-style UI.
 # STEP 10 – Deployment (Week 11–12)
 
 ## 10.1 Deployment Stack
-- Vercel (frontend)
-- Railway/Supabase (database)
+- Vercel (frontend + API routes)
+- Supabase (PostgreSQL + Auth + Row Level Security)
+- Railway (optional: background workers, cron jobs, or dedicated API server)
+- Storage: Supabase Storage (user exports, charts)
 
 ## 10.2 Environment Setup
 - Secure API keys
@@ -587,11 +609,71 @@ Render in chat-style UI.
 Before launch ensure:
 
 - Monte Carlo engine produces stable results
+- Monte Carlo validation: run 3 fixed seeds and verify expected return, Sharpe, and VaR stay within defined tolerances
+- Monte Carlo validation: run 3 random seeds and confirm metric variance stays within defined tolerances
 - AI responses are structured and useful
+- AI output validation: response uses the required sections and bullet points (no free-form paragraphs)
+- AI output validation: includes at least 3 concrete improvement suggestions tied to metrics
 - Leaderboard ranks correctly
+- Leaderboard validation: rank order matches Sharpe ratio primary sort, then max drawdown, then VaR
 - Shock events modify outcomes visibly
+- Shock validation: at least one metric (expected return, volatility, or VaR) shifts beyond tolerance after shock applied
 - No allocation exceeds 100%
+- Allocation validation: hard server-side guard rejects totals > 100 and < 100 where strict equality is required
 - All routes protected
+- Route protection validation: unauthenticated requests return 401/403 for every protected API route
+
+---
+
+# Improvements and Clarifications
+
+This section captures recommended upgrades and clarifications identified during a roadmap review.
+
+## Product and Scope
+- Add explicit target user personas (e.g., MBA students, finance analysts, retail investors) to guide UX depth and analytics complexity.
+- Clarify portfolio horizon (1-year vs multi-year) and rebalancing cadence.
+- Define whether allocations must be integer percentages or allow decimals.
+
+## Quant and Modeling
+- Add CVaR (Expected Shortfall) alongside VaR for tail-risk sensitivity.
+- Add minimum/maximum allocation constraints per asset (configurable rules).
+- Document return distribution choice (normal vs lognormal) and justify.
+- Add correlation matrix input source and default calibration approach.
+- Support seeded runs for reproducible simulations and validation.
+- Add stress scenarios with deterministic shocks (not only stochastic).
+
+## Data and Assumptions
+- Centralize asset assumptions in a config file with versioning.
+- Log assumptions and shock parameters per run for auditability.
+- Add risk-free rate configuration per environment.
+
+## AI Layer
+- Add strict schema for AI responses to prevent unstructured output.
+- Add prompt versioning and response metadata (model, latency, tokens).
+- Add safety checks to prevent investment advice language.
+
+## Backend and API
+- Define API contracts for `strategies`, `simulations`, `leaderboard`, `ai/risk`.
+- Add server-side validation for allocation totals and bounds.
+- Add rate limiting and per-user quotas for AI endpoints.
+
+## UI/UX
+- Add onboarding flow that explains metrics and assumptions.
+- Add an "Assumptions" panel visible on every simulation run.
+- Provide a comparison view for strategy versions.
+
+## Testing and QA
+- Add unit tests for metrics (including CVaR) and Monte Carlo outputs.
+- Add snapshot tests for AI response formatting.
+- Add end-to-end tests for the full �allocate ? simulate ? save ? rank� flow.
+
+## Security and Compliance
+- Add PII handling policy and data retention duration.
+- Add audit logging for strategy changes and leaderboard updates.
+
+## Ops and Observability
+- Add structured logging and tracing for simulations and AI calls.
+- Track cost per AI call and aggregate cost per user.
 
 ---
 
