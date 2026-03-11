@@ -1,4 +1,9 @@
-import { assetReturnAssumptions, type AssetKey } from "@/lib/assetAssumptions";
+import {
+  assetReturnAssumptions,
+  type AssetKey,
+  type AssetReturnAssumptions,
+} from "@/lib/assetAssumptions";
+import { applyShockToAssumptions, type ShockParameters } from "@/lib/shockEngine";
 
 export type Allocation = {
   equity: number;
@@ -22,15 +27,20 @@ function sampleStandardNormal(): number {
   return Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2.0 * Math.PI * v);
 }
 
-export function generateAssetYearlyReturn(asset: AssetKey): number {
-  const { mean, volatility } = assetReturnAssumptions[asset];
+export function generateAssetYearlyReturn(
+  asset: AssetKey,
+  assumptions: AssetReturnAssumptions = assetReturnAssumptions,
+): number {
+  const { mean, volatility } = assumptions[asset];
   return mean + volatility * sampleStandardNormal();
 }
 
-export function generateYearlyAssetReturns(): Record<AssetKey, number> {
+export function generateYearlyAssetReturns(
+  assumptions: AssetReturnAssumptions = assetReturnAssumptions,
+): Record<AssetKey, number> {
   return assetKeys.reduce<Record<AssetKey, number>>(
     (returns, key) => {
-      returns[key] = generateAssetYearlyReturn(key);
+      returns[key] = generateAssetYearlyReturn(key, assumptions);
       return returns;
     },
     {} as Record<AssetKey, number>,
@@ -71,12 +81,15 @@ function normalizeAllocation(allocation: Allocation): Record<AssetKey, number> {
   );
 }
 
-export function runMonteCarloSimulation(allocation: Allocation): number[] {
+export function runMonteCarloSimulation(
+  allocation: Allocation,
+  assumptions: AssetReturnAssumptions = assetReturnAssumptions,
+): number[] {
   const weights = normalizeAllocation(allocation);
   const outcomes: number[] = [];
 
   for (let i = 0; i < MONTE_CARLO_ITERATIONS; i += 1) {
-    const yearlyReturns = generateYearlyAssetReturns();
+    const yearlyReturns = generateYearlyAssetReturns(assumptions);
 
     const portfolioReturn = assetKeys.reduce((total, key) => {
       return total + weights[key] * yearlyReturns[key];
@@ -86,4 +99,13 @@ export function runMonteCarloSimulation(allocation: Allocation): number[] {
   }
 
   return outcomes;
+}
+
+export function runMonteCarloSimulationWithShock(
+  allocation: Allocation,
+  shock: ShockParameters,
+  baseAssumptions: AssetReturnAssumptions = assetReturnAssumptions,
+): number[] {
+  const shockedAssumptions = applyShockToAssumptions(baseAssumptions, shock);
+  return runMonteCarloSimulation(allocation, shockedAssumptions);
 }
