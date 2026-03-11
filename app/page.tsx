@@ -5,6 +5,7 @@ export default function Home() {
     { href: "/login", label: "Sign in" },
     { href: "/register", label: "Create account" },
     { href: "/dashboard", label: "Dashboard" },
+    { href: "/strategies", label: "Strategy History" },
     { href: "/simulate", label: "Simulate" },
     { href: "/leaderboard", label: "Leaderboard" },
     { href: "/strategy/demo", label: "Strategy Detail" },

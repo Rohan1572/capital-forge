@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { getSessionUser } from "@/lib/session";
 import { LogoutButton } from "@/components/LogoutButton";
 
@@ -18,6 +19,14 @@ export default async function DashboardPage() {
       <p className="text-zinc-400">
         Portfolio snapshot, metrics, and recent simulations will be shown here.
       </p>
+      <div>
+        <Link
+          href="/strategies"
+          className="inline-flex rounded-lg border border-zinc-700 bg-zinc-950 px-4 py-2 text-sm font-medium text-zinc-100 transition hover:border-zinc-500"
+        >
+          View strategy history
+        </Link>
+      </div>
     </main>
   );
 }

@@ -38,3 +38,26 @@ export async function GET() {
 
   return NextResponse.json({ data: strategies });
 }
+
+export async function DELETE(request: Request) {
+  const user = await getSessionUser();
+  if (!user) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const body = (await request.json()) as { id?: string };
+  const id = body.id?.trim();
+
+  if (!id) {
+    return NextResponse.json({ error: "id is required" }, { status: 400 });
+  }
+
+  await prisma.strategy.deleteMany({
+    where: {
+      id,
+      userId: user.id,
+    },
+  });
+
+  return NextResponse.json({ ok: true });
+}
