@@ -45,6 +45,43 @@ export function buildRiskExplainerPromptFromMetrics(
   return buildRiskExplainerPrompt(buildRiskPromptInput(allocation, metrics));
 }
 
+export type ShockGeneratorContext = {
+  weekLabel?: string;
+  focus?: string;
+  recentConditions?: string;
+};
+
+export function buildShockGeneratorPrompt(context: ShockGeneratorContext = {}): string {
+  const contextLines = [
+    context.weekLabel ? `Week Label: ${context.weekLabel}` : null,
+    context.focus ? `Focus: ${context.focus}` : null,
+    context.recentConditions ? `Recent Conditions: ${context.recentConditions}` : null,
+  ].filter(Boolean);
+
+  return [
+    "You are a macro risk strategist creating a single weekly market shock scenario.",
+    "Generate a shock that is plausible, specific, and clearly tied to macro/market dynamics.",
+    "Return ONLY valid JSON with the exact keys listed below.",
+    "Do not include markdown or extra commentary.",
+    "",
+    "Required JSON keys:",
+    "- title: short shock name",
+    "- description: 2-3 sentence narrative",
+    "- marketImpact: 3-5 bullet points as an array of strings",
+    "- modifiers: object with the following keys:",
+    "  - meanShift: number between -0.20 and 0.20",
+    "  - volatilityMultiplier: number between 0.60 and 2.00",
+    "  - correlationShift: number between -0.50 and 0.50",
+    "  - meanShiftByAsset: object with optional keys equity,startups,bonds,gold,crypto,cash",
+    "  - volatilityMultiplierByAsset: object with optional keys equity,startups,bonds,gold,crypto,cash",
+    "  - correlationShiftByAsset: object with optional keys equity,startups,bonds,gold,crypto,cash",
+    "If a per-asset object is empty, return an empty object {}.",
+    "",
+    "Ensure modifiers are consistent with the narrative (e.g., recession lowers mean returns, raises volatility, and increases correlations).",
+    ...contextLines,
+  ].join("\n");
+}
+
 function topAllocatedAssets(allocation: Allocation, count = 2): [string, number][] {
   return Object.entries(allocation)
     .sort(([, a], [, b]) => b - a)

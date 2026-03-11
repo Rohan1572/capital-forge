@@ -4,6 +4,7 @@ import {
   buildRiskExplainerPrompt,
   buildRiskExplainerPromptFromMetrics,
   buildRiskPromptInput,
+  buildShockGeneratorPrompt,
 } from "./aiPrompts";
 import type { Allocation } from "./monteCarlo";
 import type { SimulationMetrics } from "./metrics";
@@ -135,5 +136,32 @@ describe("buildRiskExplainerMarkdown", () => {
     expect(markdown).toContain("### Allocation Improvements");
     expect(markdown).toContain("### Downside Risks");
     expect(markdown).toContain("- Warning:");
+  });
+});
+
+describe("buildShockGeneratorPrompt", () => {
+  it("includes required json keys and modifier ranges", () => {
+    const prompt = buildShockGeneratorPrompt();
+
+    expect(prompt).toContain("Return ONLY valid JSON");
+    expect(prompt).toContain("title:");
+    expect(prompt).toContain("description:");
+    expect(prompt).toContain("marketImpact:");
+    expect(prompt).toContain("modifiers:");
+    expect(prompt).toContain("meanShift: number between -0.20 and 0.20");
+    expect(prompt).toContain("volatilityMultiplier: number between 0.60 and 2.00");
+    expect(prompt).toContain("correlationShift: number between -0.50 and 0.50");
+  });
+
+  it("includes optional context when provided", () => {
+    const prompt = buildShockGeneratorPrompt({
+      weekLabel: "Week 6",
+      focus: "Energy price spike",
+      recentConditions: "Inflation cooling but credit spreads widening.",
+    });
+
+    expect(prompt).toContain("Week Label: Week 6");
+    expect(prompt).toContain("Focus: Energy price spike");
+    expect(prompt).toContain("Recent Conditions: Inflation cooling but credit spreads widening.");
   });
 });
