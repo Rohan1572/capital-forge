@@ -5,6 +5,7 @@ import {
   buildRiskExplainerPromptFromMetrics,
   buildRiskPromptInput,
   buildShockGeneratorPrompt,
+  buildDebateAgentPrompt,
 } from "./aiPrompts";
 import type { Allocation } from "./monteCarlo";
 import type { SimulationMetrics } from "./metrics";
@@ -163,5 +164,65 @@ describe("buildShockGeneratorPrompt", () => {
     expect(prompt).toContain("Week Label: Week 6");
     expect(prompt).toContain("Focus: Energy price spike");
     expect(prompt).toContain("Recent Conditions: Inflation cooling but credit spreads widening.");
+  });
+});
+
+describe("buildDebateAgentPrompt", () => {
+  const allocation: Allocation = {
+    equity: 30,
+    startups: 20,
+    bonds: 20,
+    gold: 10,
+    crypto: 10,
+    cash: 10,
+  };
+
+  const metrics: SimulationMetrics = {
+    expectedReturn: 0.13,
+    standardDeviation: 0.21,
+    sharpeRatio: 0.58,
+    maxDrawdown: 0.28,
+    valueAtRisk5: -0.19,
+    probabilityOfLossOver30: 0.09,
+  };
+
+  it("includes conservative investor priorities and downside focus", () => {
+    const prompt = buildDebateAgentPrompt({ role: "conservative", allocation, metrics });
+
+    expect(prompt).toContain("Conservative Investor");
+    expect(prompt).toContain("Downside protection");
+    expect(prompt).toContain("Low volatility");
+    expect(prompt).toContain("drawdowns");
+  });
+
+  it("includes growth investor priorities and compounding focus", () => {
+    const prompt = buildDebateAgentPrompt({ role: "growth", allocation, metrics });
+
+    expect(prompt).toContain("Growth Investor");
+    expect(prompt).toContain("CAGR");
+    expect(prompt).toContain("Upside capture");
+    expect(prompt).toContain("aggressive reallocations");
+  });
+
+  it("includes risk manager priorities and tail-risk focus", () => {
+    const prompt = buildDebateAgentPrompt({ role: "risk", allocation, metrics });
+
+    expect(prompt).toContain("Risk Manager");
+    expect(prompt).toContain("VaR");
+    expect(prompt).toContain("CVaR");
+    expect(prompt).toContain("tail-risk");
+  });
+
+  it("includes prior statements when provided", () => {
+    const prompt = buildDebateAgentPrompt({
+      role: "risk",
+      allocation,
+      metrics,
+      priorStatements: ["Agent 1 said X", "Agent 2 said Y"],
+    });
+
+    expect(prompt).toContain("Previous Agent Statements:");
+    expect(prompt).toContain("1. Agent 1 said X");
+    expect(prompt).toContain("2. Agent 2 said Y");
   });
 });

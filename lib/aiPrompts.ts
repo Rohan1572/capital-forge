@@ -51,6 +51,104 @@ export type ShockGeneratorContext = {
   recentConditions?: string;
 };
 
+export type DebateAgentRole = "conservative" | "growth" | "risk";
+
+export type DebateAgentProfile = {
+  role: DebateAgentRole;
+  name: string;
+  focus: string;
+  priorities: string[];
+  tactics: string[];
+};
+
+export const DEBATE_AGENT_PROFILES: Record<DebateAgentRole, DebateAgentProfile> = {
+  conservative: {
+    role: "conservative",
+    name: "Conservative Investor",
+    focus: "Downside protection and capital preservation.",
+    priorities: [
+      "Low volatility and stable outcomes.",
+      "Limiting drawdowns and worst-case losses.",
+      "Liquidity and resilience in stress regimes.",
+    ],
+    tactics: [
+      "Recommend defensive reallocations.",
+      "Suggest hedges and higher-quality ballast assets.",
+      "Challenge excess growth concentration.",
+    ],
+  },
+  growth: {
+    role: "growth",
+    name: "Growth Investor",
+    focus: "CAGR and long-term compounding.",
+    priorities: [
+      "Maximizing expected return over multi-year horizons.",
+      "Upside capture through innovation exposure.",
+      "Accepting volatility when return quality is strong.",
+    ],
+    tactics: [
+      "Propose aggressive reallocations toward growth assets.",
+      "Challenge overly defensive allocations.",
+      "Push for scalable return drivers.",
+    ],
+  },
+  risk: {
+    role: "risk",
+    name: "Risk Manager",
+    focus: "VaR, CVaR, and tail-risk control.",
+    priorities: [
+      "Stress-test sensitivity to shocks and correlations.",
+      "Flag concentration risk and hidden leverage.",
+      "Enforce risk limits and diversification rules.",
+    ],
+    tactics: [
+      "Quantify tail-risk exposures.",
+      "Propose limits or guardrails on risky assets.",
+      "Prioritize correlation-aware diversification.",
+    ],
+  },
+};
+
+export type DebateAgentPromptInput = {
+  role: DebateAgentRole;
+  allocation: Allocation;
+  metrics: SimulationMetrics;
+  priorStatements?: string[];
+};
+
+export function buildDebateAgentPrompt(input: DebateAgentPromptInput): string {
+  const profile = DEBATE_AGENT_PROFILES[input.role];
+  const priorLines =
+    input.priorStatements && input.priorStatements.length > 0
+      ? [
+          "",
+          "Previous Agent Statements:",
+          ...input.priorStatements.map((statement, index) => `${index + 1}. ${statement}`),
+        ]
+      : [];
+
+  return [
+    `You are the ${profile.name} in a multi-agent investment debate.`,
+    `Primary focus: ${profile.focus}`,
+    "Operating priorities:",
+    ...profile.priorities.map((item) => `- ${item}`),
+    "Debate tactics:",
+    ...profile.tactics.map((item) => `- ${item}`),
+    "",
+    "Respond in concise bullet points under these headings:",
+    "Opening Statement, Counterpoints, Recommendation.",
+    "Be specific about allocation changes and justify with the metrics.",
+    "Avoid generic advice; reference downside risk, CAGR potential, or tail-risk control as appropriate.",
+    "",
+    `Allocation: ${JSON.stringify(input.allocation)}`,
+    `Expected Return: ${input.metrics.expectedReturn}`,
+    `Sharpe Ratio: ${input.metrics.sharpeRatio}`,
+    `Value at Risk (95%): ${input.metrics.valueAtRisk5}`,
+    `Max Drawdown: ${input.metrics.maxDrawdown}`,
+    ...priorLines,
+  ].join("\n");
+}
+
 export function buildShockGeneratorPrompt(context: ShockGeneratorContext = {}): string {
   const contextLines = [
     context.weekLabel ? `Week Label: ${context.weekLabel}` : null,

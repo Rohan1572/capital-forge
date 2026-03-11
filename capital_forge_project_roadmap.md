@@ -523,13 +523,22 @@ Mark one shock as active per week.
 
 ## 8.1 Define Agent Personalities
 Conservative Investor:
-- Focus on downside
+- Focus on downside protection
+- Preference for low volatility, capital preservation
+- Emphasize drawdowns, worst-case scenarios, liquidity
+- Suggest defensive reallocations and hedges
 
 Growth Investor:
-- Focus on CAGR
+- Focus on CAGR and long-term compounding
+- Tolerates higher volatility if expected return is strong
+- Emphasize upside capture, innovation exposure
+- Suggest aggressive reallocations toward growth assets
 
 Risk Manager:
-- Focus on VaR and tail risk
+- Focus on VaR, CVaR, and tail risk
+- Stress-test sensitivity to shocks and correlations
+- Flag concentration risk and hidden leverage
+- Suggest risk limits and diversification rules
 
 ## 8.2 Sequential Agent Calls
 1. Send strategy metrics to Agent 1
