@@ -60,6 +60,16 @@ export default function SimulatePage() {
     const promptInput = buildRiskPromptInput(allocation, metrics);
     const aiOutput = buildRiskExplainerMarkdown(promptInput);
 
+    await fetch("/api/strategies", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({
+        allocation,
+        metrics,
+      }),
+    });
+
     setSimulationResults(outcomes);
     setAiRiskMarkdown(aiOutput);
     setIsSimulating(false);

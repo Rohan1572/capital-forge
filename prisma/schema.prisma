@@ -26,6 +26,7 @@ model User {
   passwordHash String
   createdAt    DateTime  @default(now())
   sessions     Session[]
+  strategies   Strategy[]
 }
 
 model Session {
@@ -35,6 +36,17 @@ model Session {
   expiresAt DateTime
   createdAt DateTime @default(now())
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model Strategy {
+  id         String   @id @default(cuid())
+  userId     String
+  allocation Json
+  metrics    Json
+  createdAt  DateTime @default(now())
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
 }
