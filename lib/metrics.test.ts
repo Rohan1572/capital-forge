@@ -7,6 +7,7 @@ import {
   probabilityOfLossOverThreshold,
   sharpeRatio,
   standardDeviation,
+  conditionalValueAtRisk,
   valueAtRisk,
 } from "./metrics";
 
@@ -77,6 +78,16 @@ describe("valueAtRisk", () => {
   });
 });
 
+describe("conditionalValueAtRisk", () => {
+  it("returns 0 for empty input", () => {
+    expect(conditionalValueAtRisk([])).toBe(0);
+  });
+
+  it("returns mean of tail losses below VaR", () => {
+    expect(conditionalValueAtRisk([-0.5, -0.2, -0.1, 0.1, 0.3])).toBeCloseTo(-0.5, 10);
+  });
+});
+
 describe("probabilityOfLossOverThreshold", () => {
   it("returns 0 for empty input", () => {
     expect(probabilityOfLossOverThreshold([])).toBe(0);
@@ -96,6 +107,7 @@ describe("computeSimulationMetrics", () => {
     expect(metrics.sharpeRatio).toBeCloseTo(0.1995570316, 10);
     expect(metrics.maxDrawdown).toBeCloseTo(0.4, 10);
     expect(metrics.valueAtRisk5).toBeCloseTo(-0.34, 10);
+    expect(metrics.conditionalValueAtRisk95).toBeCloseTo(-0.4, 10);
     expect(metrics.probabilityOfLossOver30).toBeCloseTo(0.2, 10);
   });
 });

@@ -124,6 +124,7 @@ export function SimulationChart({ values }: SimulationChartProps) {
         <RiskCard label="Sharpe Ratio" value={metrics.sharpeRatio.toFixed(2)} />
         <RiskCard label="Max Drawdown" value={formatPercent(metrics.maxDrawdown)} />
         <RiskCard label="VaR (5%)" value={formatPercent(metrics.valueAtRisk5)} />
+        <RiskCard label="CVaR (95%)" value={formatPercent(metrics.conditionalValueAtRisk95)} />
         <RiskCard label="Prob. Loss > 30%" value={formatPercent(metrics.probabilityOfLossOver30)} />
       </div>
 

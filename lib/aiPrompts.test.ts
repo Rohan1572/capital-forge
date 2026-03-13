@@ -27,6 +27,7 @@ describe("buildRiskPromptInput", () => {
       sharpeRatio: 0.63,
       maxDrawdown: 0.29,
       valueAtRisk5: -0.18,
+      conditionalValueAtRisk95: -0.24,
       probabilityOfLossOver30: 0.08,
     };
 
@@ -35,6 +36,7 @@ describe("buildRiskPromptInput", () => {
       expectedReturn: 0.14,
       sharpeRatio: 0.63,
       valueAtRisk: -0.18,
+      conditionalValueAtRisk: -0.24,
       maxDrawdown: 0.29,
     });
   });
@@ -54,6 +56,7 @@ describe("buildRiskExplainerPrompt", () => {
       expectedReturn: 0.12,
       sharpeRatio: 0.55,
       valueAtRisk: -0.16,
+      conditionalValueAtRisk: -0.21,
       maxDrawdown: 0.24,
     });
 
@@ -61,6 +64,7 @@ describe("buildRiskExplainerPrompt", () => {
     expect(prompt).toContain("Expected Return: 0.12");
     expect(prompt).toContain("Sharpe Ratio: 0.55");
     expect(prompt).toContain("Value at Risk (95%): -0.16");
+    expect(prompt).toContain("Conditional Value at Risk (95%): -0.21");
     expect(prompt).toContain("Max Drawdown: 0.24");
   });
 
@@ -77,6 +81,7 @@ describe("buildRiskExplainerPrompt", () => {
       expectedReturn: 0.15,
       sharpeRatio: 0.48,
       valueAtRisk: -0.22,
+      conditionalValueAtRisk: -0.3,
       maxDrawdown: 0.33,
     });
 
@@ -104,6 +109,7 @@ describe("buildRiskExplainerPromptFromMetrics", () => {
       sharpeRatio: 0.5,
       maxDrawdown: 0.2,
       valueAtRisk5: -0.12,
+      conditionalValueAtRisk95: -0.18,
       probabilityOfLossOver30: 0.1,
     };
 
@@ -111,6 +117,7 @@ describe("buildRiskExplainerPromptFromMetrics", () => {
     expect(prompt).toContain("Expected Return: 0.1");
     expect(prompt).toContain("Sharpe Ratio: 0.5");
     expect(prompt).toContain("Value at Risk (95%): -0.12");
+    expect(prompt).toContain("Conditional Value at Risk (95%): -0.18");
     expect(prompt).toContain("Max Drawdown: 0.2");
   });
 });
@@ -129,6 +136,7 @@ describe("buildRiskExplainerMarkdown", () => {
       expectedReturn: 0.11,
       sharpeRatio: 0.44,
       valueAtRisk: -0.21,
+      conditionalValueAtRisk: -0.27,
       maxDrawdown: 0.31,
     });
 
@@ -183,6 +191,7 @@ describe("buildDebateAgentPrompt", () => {
     sharpeRatio: 0.58,
     maxDrawdown: 0.28,
     valueAtRisk5: -0.19,
+    conditionalValueAtRisk95: -0.26,
     probabilityOfLossOver30: 0.09,
   };
 

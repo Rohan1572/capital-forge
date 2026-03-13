@@ -65,6 +65,7 @@ export function buildRiskCacheKey(
     `sharpe:${metrics.sharpeRatio}`,
     `draw:${metrics.maxDrawdown}`,
     `var:${metrics.valueAtRisk5}`,
+    `cvar:${metrics.conditionalValueAtRisk95}`,
     `loss30:${metrics.probabilityOfLossOver30}`,
   ].join("|");
 }

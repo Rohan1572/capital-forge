@@ -20,6 +20,7 @@ describe("runDebateSequence", () => {
     sharpeRatio: 0.52,
     maxDrawdown: 0.26,
     valueAtRisk5: -0.17,
+    conditionalValueAtRisk95: -0.23,
     probabilityOfLossOver30: 0.07,
   };
 

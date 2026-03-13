@@ -18,6 +18,7 @@ export type SimulationMetrics = {
   sharpeRatio: number;
   maxDrawdown: number;
   valueAtRisk5: number;
+  conditionalValueAtRisk95: number;
   probabilityOfLossOver30: number;
 };
 
@@ -65,6 +66,14 @@ export function valueAtRisk(values: number[], percentileLevel = 0.05): number {
   return percentile(values, percentileLevel);
 }
 
+export function conditionalValueAtRisk(values: number[], percentileLevel = 0.05): number {
+  if (values.length === 0) return 0;
+  const threshold = percentile(values, percentileLevel);
+  const tailValues = values.filter((value) => value <= threshold);
+  if (tailValues.length === 0) return threshold;
+  return mean(tailValues);
+}
+
 export function probabilityOfLossOverThreshold(values: number[], threshold = 0.3): number {
   if (values.length === 0) return 0;
   const losers = values.filter((value) => value < -Math.abs(threshold)).length;
@@ -81,6 +90,7 @@ export function computeSimulationMetrics(
     sharpeRatio: sharpeRatio(simulationResults, riskFreeRate),
     maxDrawdown: maxDrawdown(simulationResults),
     valueAtRisk5: valueAtRisk(simulationResults, 0.05),
+    conditionalValueAtRisk95: conditionalValueAtRisk(simulationResults, 0.05),
     probabilityOfLossOver30: probabilityOfLossOverThreshold(simulationResults, 0.3),
   };
 }

@@ -8,6 +8,7 @@ type LeaderboardMetrics = {
   sharpeRatio?: number;
   maxDrawdown?: number;
   valueAtRisk5?: number;
+  conditionalValueAtRisk95?: number;
 };
 
 type LeaderboardEntry = {
@@ -138,6 +139,7 @@ export default function LeaderboardPage() {
                   <th className="px-4 py-3">Expected Return</th>
                   <th className="px-4 py-3">Drawdown</th>
                   <th className="px-4 py-3">VaR (5%)</th>
+                  <th className="px-4 py-3">CVaR (95%)</th>
                   <th className="px-4 py-3">Last Update</th>
                 </tr>
               </thead>
@@ -150,6 +152,9 @@ export default function LeaderboardPage() {
                     <td className="px-4 py-3">{formatPercent(entry.metrics.expectedReturn)}</td>
                     <td className="px-4 py-3">{formatPercent(entry.metrics.maxDrawdown)}</td>
                     <td className="px-4 py-3">{formatPercent(entry.metrics.valueAtRisk5)}</td>
+                    <td className="px-4 py-3">
+                      {formatPercent(entry.metrics.conditionalValueAtRisk95)}
+                    </td>
                     <td className="px-4 py-3 text-zinc-400">{formatDate(entry.createdAt)}</td>
                   </tr>
                 ))}

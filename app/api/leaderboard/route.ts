@@ -6,6 +6,7 @@ type StrategyMetrics = {
   sharpeRatio?: number;
   maxDrawdown?: number;
   valueAtRisk5?: number;
+  conditionalValueAtRisk95?: number;
 };
 
 type LeaderboardEntry = {

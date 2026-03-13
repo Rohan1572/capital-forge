@@ -6,6 +6,7 @@ export type RiskPromptInput = {
   expectedReturn: number;
   sharpeRatio: number;
   valueAtRisk: number;
+  conditionalValueAtRisk: number;
   maxDrawdown: number;
 };
 
@@ -18,6 +19,7 @@ export function buildRiskPromptInput(
     expectedReturn: metrics.expectedReturn,
     sharpeRatio: metrics.sharpeRatio,
     valueAtRisk: metrics.valueAtRisk5,
+    conditionalValueAtRisk: metrics.conditionalValueAtRisk95,
     maxDrawdown: metrics.maxDrawdown,
   };
 }
@@ -28,12 +30,13 @@ export function buildRiskExplainerPrompt(input: RiskPromptInput): string {
     "Use a professional tone suitable for an investment committee memo.",
     "Identify portfolio weaknesses using the provided metrics and allocation mix.",
     "Suggest specific allocation improvements with practical rationale.",
-    "Clearly highlight downside risks, including tail-risk implications from VaR and drawdown.",
+    "Clearly highlight downside risks, including tail-risk implications from VaR, CVaR, and drawdown.",
     "Respond in concise bullet points under these headings: Overall Assessment, Weaknesses, Allocation Improvements, Downside Risks.",
     `Allocation: ${JSON.stringify(input.allocation)}`,
     `Expected Return: ${input.expectedReturn}`,
     `Sharpe Ratio: ${input.sharpeRatio}`,
     `Value at Risk (95%): ${input.valueAtRisk}`,
+    `Conditional Value at Risk (95%): ${input.conditionalValueAtRisk}`,
     `Max Drawdown: ${input.maxDrawdown}`,
   ].join("\n");
 }
@@ -144,6 +147,7 @@ export function buildDebateAgentPrompt(input: DebateAgentPromptInput): string {
     `Expected Return: ${input.metrics.expectedReturn}`,
     `Sharpe Ratio: ${input.metrics.sharpeRatio}`,
     `Value at Risk (95%): ${input.metrics.valueAtRisk5}`,
+    `Conditional Value at Risk (95%): ${input.metrics.conditionalValueAtRisk95}`,
     `Max Drawdown: ${input.metrics.maxDrawdown}`,
     ...priorLines,
   ].join("\n");
@@ -202,6 +206,11 @@ export function buildRiskExplainerMarkdown(input: RiskPromptInput): string {
       `Tail-loss profile is elevated (VaR 95% ${Math.abs(input.valueAtRisk * 100).toFixed(1)}%), suggesting meaningful downside in stress periods.`,
     );
   }
+  if (input.conditionalValueAtRisk <= -0.25) {
+    weaknesses.push(
+      `Extreme tail outcomes are heavy (CVaR 95% ${Math.abs(input.conditionalValueAtRisk * 100).toFixed(1)}%), implying deeper losses in the worst scenarios.`,
+    );
+  }
   if (input.maxDrawdown >= 0.3) {
     weaknesses.push(
       `Drawdown depth is high (max drawdown ${(input.maxDrawdown * 100).toFixed(1)}%), which can pressure risk tolerance and capital preservation.`,
@@ -238,6 +247,7 @@ export function buildRiskExplainerMarkdown(input: RiskPromptInput): string {
 
   const downsideRisks = [
     `Warning: Historical-style stress can exceed VaR assumptions; a 95% VaR of ${(input.valueAtRisk * 100).toFixed(1)}% still leaves 5% tail outcomes potentially worse.`,
+    `Warning: CVaR of ${(input.conditionalValueAtRisk * 100).toFixed(1)}% implies the average of the worst 5% outcomes can be materially deeper.`,
     `Warning: A drawdown profile of ${(input.maxDrawdown * 100).toFixed(1)}% can force unfavorable de-risking if liquidity needs rise.`,
     `Warning: Current concentration in ${topAssets} may amplify correlation shocks during market dislocations.`,
   ];

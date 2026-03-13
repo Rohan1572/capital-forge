@@ -75,8 +75,13 @@ export default function StrategyHistoryPage() {
     const lowestVar = strategies.reduce((best, current) =>
       current.metrics.valueAtRisk5 > best.metrics.valueAtRisk5 ? current : best,
     );
+    const lowestCvar = strategies.reduce((best, current) =>
+      current.metrics.conditionalValueAtRisk95 > best.metrics.conditionalValueAtRisk95
+        ? current
+        : best,
+    );
 
-    return { bestSharpe, lowestDrawdown, lowestVar };
+    return { bestSharpe, lowestDrawdown, lowestVar, lowestCvar };
   }, [strategies]);
 
   async function handleDelete(id: string) {
@@ -149,7 +154,7 @@ export default function StrategyHistoryPage() {
       ) : null}
 
       {comparison ? (
-        <section className="grid gap-4 md:grid-cols-3">
+        <section className="grid gap-4 md:grid-cols-4">
           <div className="rounded-xl border border-zinc-800 bg-zinc-900/80 p-4">
             <p className="text-xs uppercase text-zinc-500">Best Sharpe</p>
             <p className="mt-2 text-lg font-semibold">
@@ -173,6 +178,13 @@ export default function StrategyHistoryPage() {
             </p>
             <p className="text-xs text-zinc-400">{formatDate(comparison.lowestVar.createdAt)}</p>
           </div>
+          <div className="rounded-xl border border-zinc-800 bg-zinc-900/80 p-4">
+            <p className="text-xs uppercase text-zinc-500">Best CVaR (95%)</p>
+            <p className="mt-2 text-lg font-semibold">
+              {formatPercent(comparison.lowestCvar.metrics.conditionalValueAtRisk95)}
+            </p>
+            <p className="text-xs text-zinc-400">{formatDate(comparison.lowestCvar.createdAt)}</p>
+          </div>
         </section>
       ) : null}
 
@@ -188,6 +200,7 @@ export default function StrategyHistoryPage() {
                   <th className="px-4 py-3">Sharpe</th>
                   <th className="px-4 py-3">Drawdown</th>
                   <th className="px-4 py-3">VaR (5%)</th>
+                  <th className="px-4 py-3">CVaR (95%)</th>
                   <th className="px-4 py-3">Loss &gt; 30%</th>
                   <th className="px-4 py-3"></th>
                 </tr>
@@ -203,6 +216,9 @@ export default function StrategyHistoryPage() {
                     <td className="px-4 py-3">{formatNumber(strategy.metrics.sharpeRatio)}</td>
                     <td className="px-4 py-3">{formatPercent(strategy.metrics.maxDrawdown)}</td>
                     <td className="px-4 py-3">{formatPercent(strategy.metrics.valueAtRisk5)}</td>
+                    <td className="px-4 py-3">
+                      {formatPercent(strategy.metrics.conditionalValueAtRisk95)}
+                    </td>
                     <td className="px-4 py-3">
                       {formatPercent(strategy.metrics.probabilityOfLossOver30)}
                     </td>
