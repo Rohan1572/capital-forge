@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { AllocationSlider } from "@/components/AllocationSlider";
+import { AIDebatePanel } from "@/components/AIDebatePanel";
 import { RiskExplainerPanel } from "@/components/RiskExplainerPanel";
 import {
   SkeletonBlock,
@@ -14,6 +15,7 @@ import type { Allocation } from "@/lib/monteCarlo";
 import { runMonteCarloSimulation } from "@/lib/monteCarlo";
 import { SimulationChart } from "@/components/SimulationChart";
 import { computeSimulationMetrics } from "@/lib/metrics";
+import type { DebateAgentCall } from "@/lib/debateEngine";
 
 const simulationCache = new TTLCache<number[]>({ ttlMs: 2 * 60 * 1000, maxSize: 20 });
 
@@ -39,6 +41,7 @@ export default function SimulatePage() {
   const [allocation, setAllocation] = useState<Allocation>(defaultAllocation);
   const [simulationResults, setSimulationResults] = useState<number[] | null>(null);
   const [aiRiskMarkdown, setAiRiskMarkdown] = useState<string | null>(null);
+  const [aiDebateCalls, setAiDebateCalls] = useState<DebateAgentCall[] | null>(null);
   const [isSimulating, setIsSimulating] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -61,6 +64,7 @@ export default function SimulatePage() {
 
     setIsSimulating(true);
     setError(null);
+    setAiDebateCalls(null);
 
     // Yield once so the loading state paints before CPU-heavy simulation work starts.
     await new Promise<void>((resolve) => setTimeout(resolve, 0));
@@ -75,8 +79,13 @@ export default function SimulatePage() {
 
       const metrics = computeSimulationMetrics(outcomes);
 
-      const [aiResponse, saveResponse] = await Promise.all([
+      const [aiRiskResponse, aiDebateResponse, saveResponse] = await Promise.all([
         fetch("/api/ai/risk", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ allocation, metrics }),
+        }),
+        fetch("/api/ai/debate", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ allocation, metrics }),
@@ -92,21 +101,34 @@ export default function SimulatePage() {
         }),
       ]);
 
+      let errorMessage: string | null = null;
       if (!saveResponse.ok) {
-        setError("Simulation saved locally, but the strategy could not be stored.");
+        errorMessage = "Simulation saved locally, but the strategy could not be stored.";
       }
 
-      if (aiResponse.ok) {
-        const payload = (await aiResponse.json()) as { data?: { markdown?: string } };
+      if (aiRiskResponse.ok) {
+        const payload = (await aiRiskResponse.json()) as { data?: { markdown?: string } };
         setAiRiskMarkdown(payload.data?.markdown ?? null);
-      } else if (aiResponse.status === 429) {
+      } else if (aiRiskResponse.status === 429) {
         setAiRiskMarkdown(null);
-        setError("AI insights are rate limited. Please wait a minute and try again.");
+        errorMessage ??= "AI insights are rate limited. Please wait a minute and try again.";
       } else {
         setAiRiskMarkdown(null);
-        setError("AI insights are unavailable right now.");
+        errorMessage ??= "AI insights are unavailable right now.";
       }
 
+      if (aiDebateResponse.ok) {
+        const payload = (await aiDebateResponse.json()) as { data?: { calls?: DebateAgentCall[] } };
+        setAiDebateCalls(payload.data?.calls ?? null);
+      } else if (aiDebateResponse.status === 429) {
+        setAiDebateCalls(null);
+        errorMessage ??= "AI debate insights are rate limited. Please wait a minute and try again.";
+      } else {
+        setAiDebateCalls(null);
+        errorMessage ??= "AI debate insights are unavailable right now.";
+      }
+
+      setError(errorMessage);
       setSimulationResults(outcomes);
     } catch (err) {
       console.error("Simulation failed", err);
@@ -186,6 +208,7 @@ export default function SimulatePage() {
 
       {simulationResults ? <SimulationChart values={simulationResults} /> : null}
       {aiRiskMarkdown ? <RiskExplainerPanel markdown={aiRiskMarkdown} /> : null}
+      {aiDebateCalls ? <AIDebatePanel calls={aiDebateCalls} /> : null}
     </main>
   );
 }
