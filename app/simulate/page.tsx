@@ -12,10 +12,11 @@ import {
 } from "@/components/LoadingSkeleton";
 import { TTLCache, buildSimulationCacheKey } from "@/lib/cache";
 import type { Allocation } from "@/lib/monteCarlo";
-import { runMonteCarloSimulation } from "@/lib/monteCarlo";
+import { runMonteCarloSimulation, runMonteCarloSimulationWithShock } from "@/lib/monteCarlo";
 import { SimulationChart } from "@/components/SimulationChart";
 import { computeSimulationMetrics } from "@/lib/metrics";
 import type { DebateAgentCall } from "@/lib/debateEngine";
+import type { ShockParameters } from "@/lib/shockEngine";
 
 const simulationCache = new TTLCache<number[]>({ ttlMs: 2 * 60 * 1000, maxSize: 20 });
 
@@ -42,6 +43,7 @@ export default function SimulatePage() {
   const [simulationResults, setSimulationResults] = useState<number[] | null>(null);
   const [aiRiskMarkdown, setAiRiskMarkdown] = useState<string | null>(null);
   const [aiDebateCalls, setAiDebateCalls] = useState<DebateAgentCall[] | null>(null);
+  const [activeShock, setActiveShock] = useState<ShockParameters | null>(null);
   const [isSimulating, setIsSimulating] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -65,14 +67,64 @@ export default function SimulatePage() {
     setIsSimulating(true);
     setError(null);
     setAiDebateCalls(null);
+    setActiveShock(null);
 
     // Yield once so the loading state paints before CPU-heavy simulation work starts.
     await new Promise<void>((resolve) => setTimeout(resolve, 0));
 
     try {
-      const cacheKey = buildSimulationCacheKey(allocation);
+      let shockForRun: ShockParameters | null = null;
+      const shockResponse = await fetch("/api/shocks/active");
+      if (shockResponse.ok) {
+        const payload = (await shockResponse.json()) as {
+          data?: {
+            shock?: {
+              id: string;
+              title: string;
+              description: string;
+              modifiers?: {
+                meanShift: number;
+                volatilityMultiplier: number;
+                correlationShift: number;
+                meanShiftByAsset?: Record<string, number>;
+                volatilityMultiplierByAsset?: Record<string, number>;
+                correlationShiftByAsset?: Record<string, Record<string, number>>;
+              };
+            } | null;
+          };
+        };
+        const shock = payload.data?.shock ?? null;
+        const modifiers = shock?.modifiers;
+        if (shock && modifiers) {
+          shockForRun = {
+            id: shock.id,
+            title: shock.title,
+            description: shock.description,
+            meanShift: modifiers.meanShift,
+            volatilityMultiplier: modifiers.volatilityMultiplier,
+            correlationShift: modifiers.correlationShift,
+            meanShiftByAsset: modifiers.meanShiftByAsset as ShockParameters["meanShiftByAsset"],
+            volatilityMultiplierByAsset:
+              modifiers.volatilityMultiplierByAsset as ShockParameters["volatilityMultiplierByAsset"],
+            correlationShiftByAsset:
+              modifiers.correlationShiftByAsset as ShockParameters["correlationShiftByAsset"],
+          };
+          setActiveShock(shockForRun);
+        } else {
+          setActiveShock(null);
+        }
+      }
+
+      const cacheKey = [
+        buildSimulationCacheKey(allocation),
+        `shock:${shockForRun?.id ?? "none"}`,
+      ].join("|");
       const cached = simulationCache.get(cacheKey);
-      const outcomes = cached ?? runMonteCarloSimulation(allocation);
+      const outcomes =
+        cached ??
+        (shockForRun
+          ? runMonteCarloSimulationWithShock(allocation, shockForRun)
+          : runMonteCarloSimulation(allocation));
       if (!cached) {
         simulationCache.set(cacheKey, outcomes);
       }
@@ -206,7 +258,36 @@ export default function SimulatePage() {
         </section>
       ) : null}
 
-      {simulationResults ? <SimulationChart values={simulationResults} /> : null}
+      {simulationResults ? (
+        <section className="rounded-xl border border-zinc-800 bg-zinc-900/80 p-6">
+          <header className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <h2 className="text-lg font-semibold text-zinc-100">Simulation Results</h2>
+              <p className="text-sm text-zinc-400">
+                {activeShock
+                  ? "Simulated with active weekly shock adjustments."
+                  : "Simulated with baseline assumptions."}
+              </p>
+            </div>
+            {activeShock ? (
+              <div className="rounded-lg border border-amber-500/40 bg-amber-950/30 px-3 py-2 text-xs text-amber-200">
+                Weekly Shock Active
+              </div>
+            ) : null}
+          </header>
+
+          {activeShock ? (
+            <div className="mt-4 rounded-lg border border-amber-500/20 bg-amber-950/20 p-4">
+              <p className="text-sm font-semibold text-amber-100">{activeShock.title}</p>
+              <p className="mt-1 text-sm text-amber-200">{activeShock.description}</p>
+            </div>
+          ) : null}
+
+          <div className="mt-6">
+            <SimulationChart values={simulationResults} />
+          </div>
+        </section>
+      ) : null}
       {aiRiskMarkdown ? <RiskExplainerPanel markdown={aiRiskMarkdown} /> : null}
       {aiDebateCalls ? <AIDebatePanel calls={aiDebateCalls} /> : null}
     </main>
