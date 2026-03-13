@@ -677,4 +677,254 @@ This section captures recommended upgrades and clarifications identified during 
 
 ---
 
+# Development Checklist (Current Gaps)
+
+Use this as a working checklist for what is still missing or incomplete.
+
+## Core Simulation and Metrics
+- [x] Correlation-aware Monte Carlo (Cholesky sampling in `lib/monteCarlo.ts`).
+- [x] Explicit crash-regime / fat-tail modeling (configurable crash regime in `lib/assetAssumptions.ts`).
+- [x] Seeded simulation runs for reproducible validation.
+- [x] CVaR (Expected Shortfall) in metrics.
+- [ ] Apply shock correlation shifts (currently shocks adjust means/vols only).
+- [ ] Persist simulation assumptions + seed + shock id per run for auditability.
+- [ ] Risk-free rate configuration wired to metrics (currently defaults to 0).
+
+## AI Risk and Debate
+- [x] Wire `/api/ai/risk` to a real LLM call (schema-validated output).
+- [ ] Persist AI response metadata (model, tokens, latency) to DB or audit logs.
+- [x] Implement debate agent runner API and LLM invocation.
+- [x] Render debate output in UI.
+- [ ] Add AI safety guardrails to prevent investment advice language (response linting + user-facing disclaimer).
+
+## Shock Events
+- [x] Shock event generator API (LLM JSON output).
+- [x] Persist ShockEvents in the database.
+- [x] Apply active shock in simulation flow.
+- [ ] Surface active shock in UI and leaderboard context (currently only simulate page).
+- [ ] Weekly rotation or reset logic for shocks (cron/worker + admin trigger).
+
+## Strategies and Leaderboard
+- [x] Strategy detail page with metrics + AI critique.
+- [x] Leaderboard monthly filter via `month=YYYY-MM` query param.
+- [ ] Leaderboard month selector UI + display active month in page header.
+- [ ] Strategy detail enhancements: charts, shock context, and assumptions snapshot.
+- [ ] Enforce allocation bounds server-side (min/max rules + total=100 validation).
+- [ ] Protect dashboard/strategy routes with redirect when unauthenticated.
+- [ ] Decide on `SimulationRun` model usage (currently unused in UI).
+
+## Data, Assumptions, and Auditability
+- [ ] Versioned assumptions config and per-run logging.
+- [ ] Risk-free rate configuration per environment.
+- [x] Audit logging for strategy changes and rank updates (strategy create/delete + leaderboard fetch).
+
+## Testing and QA
+- [x] Unit tests for metrics, Monte Carlo, prompts, and debate parsing.
+- [ ] Snapshot tests for AI response formatting.
+- [ ] End-to-end flow tests: allocate -> simulate -> save -> rank.
+- [ ] Shock validation tests (metric deltas after shock).
+
+## Ops and Compliance
+- [ ] Monitoring for simulation latency and AI costs.
+- [ ] PII retention policy and documentation.
+
+---
+
+# UI/UX Enhancements (Add to Backlog)
+
+## Navigation & App Shell
+- Global top nav or sidebar with active route highlighting and quick links (Simulate, Strategies, Leaderboard, Dashboard).
+- Auth-aware header (user avatar, logout, session status).
+- Consistent page chrome + breadcrumbs for Strategy detail.
+
+## Simulation Experience
+- Preset allocation buttons (Conservative / Balanced / Growth) with 1-click set.
+- Numeric inputs alongside sliders with auto-balance and "lock" toggles per asset.
+- Allocation progress bar and inline validation with actionable error copy.
+- Assumptions panel: asset means/vols, correlation matrix, crash regime, and shock modifiers.
+- Toggle for baseline vs active shock simulation; show delta metrics.
+- Show AI response metadata (model, latency, cached badge).
+- Post-run toast with "Strategy saved" + deep link to detail page.
+
+## Analytics & Visualization
+- Allocation donut + stacked bar for asset weights.
+- Strategy detail charts: histogram, scenario paths, and timeline of saved strategies.
+- Leaderboard row expanders to reveal allocation and risk warnings.
+- Add tooltips for all metrics (Sharpe, VaR, CVaR, drawdown) with concise definitions.
+
+## Onboarding & Education
+- Guided onboarding flow explaining metrics, assumptions, and shock system.
+- Inline glossary popovers and "What do these metrics mean?" drawer.
+- First-run "sample strategy" to demonstrate expected output.
+
+## Accessibility & Polishing
+- Keyboard-friendly sliders + focus-visible styles.
+- Color-contrast audit for dark theme and chart labels.
+- Empty-state illustrations with actionable next steps.
+- Loading states: lighter skeletons, optimistic UI on save.
+
+---
+
+# AI Implementation Prompts
+
+Use these prompts when delegating tasks to an AI coding agent. Each prompt is scoped to a missing roadmap item.
+
+## Correlation-Aware Monte Carlo
+Prompt:
+Implement correlation-aware Monte Carlo sampling in `lib/monteCarlo.ts` using `lib/correlationMatrix.ts`. Use Cholesky decomposition to generate correlated standard normals for all assets, then apply per-asset mean/volatility. Maintain existing allocation normalization and keep 10,000 iterations. Add unit tests in `lib/metrics.test.ts` or a new `lib/monteCarlo.test.ts` to verify correlation behavior (e.g., simulated correlations approximate inputs within tolerance).
+
+## Crash Regime / Fat-Tail Modeling
+Prompt:
+Extend the simulation to include a crash regime (e.g., 3–5% probability) that applies a negative shock to equity/startups/crypto and increases volatility for one iteration. Make the regime configurable in `lib/assetAssumptions.ts` and include in `runMonteCarloSimulation`. Add tests validating a higher left-tail risk vs baseline.
+
+## Seeded Simulation Runs
+Prompt:
+Add deterministic seeding support to `lib/monteCarlo.ts` so tests and validations can reproduce results. Accept an optional `seed` parameter and implement a seeded RNG (no external dependency). Update callers to pass seed for validation tests only.
+
+## CVaR (Expected Shortfall)
+Prompt:
+Add CVaR at 95% to `lib/metrics.ts` and include it in `SimulationMetrics`. Update any UI and API types to display it and add unit tests for correctness.
+
+## Real LLM Risk Explainer
+Prompt:
+Replace deterministic markdown generation in `app/api/ai/risk/route.ts` with a real OpenAI call. Enforce a strict JSON schema in the response (headings and bullet arrays), and convert it to markdown for display. Log model name, latency, and token usage in the response payload and store it if needed.
+
+## Debate Agent Runner
+Prompt:
+Create an API route `app/api/ai/debate/route.ts` that accepts allocation + metrics, runs `runDebateSequence` with LLM calls, and returns structured sections. Add UI integration in `app/simulate/page.tsx` to display `AIDebatePanel` once debate results arrive.
+
+## Shock Generator and Persistence
+Prompt:
+Create a ShockEvents model in `prisma/schema.prisma`, run a migration, and add an API route to generate weekly shocks using `buildShockGeneratorPrompt`. Store shocks in the database with `active` and `weekStart`. Add a method to fetch the active shock for simulations.
+
+## Apply Shock in Simulation Flow
+Prompt:
+Update `app/simulate/page.tsx` to fetch the active shock from a new API route and use `runMonteCarloSimulationWithShock`. Display the shock title/summary above the charts.
+
+## Strategy Detail Page
+Prompt:
+Implement `app/strategy/[id]/page.tsx` to fetch a strategy by ID, show metrics, allocation, simulation timestamp, and AI risk summary. Add a server route for strategy lookup if missing.
+
+## Leaderboard Monthly Reset
+Prompt:
+Add a date filter to `app/api/leaderboard/route.ts` so it can return monthly results. Implement a `month` query param (YYYY-MM) and default to the current month.
+
+## Audit Logging
+Prompt:
+Add an `AuditLog` model to Prisma for strategy creation/deletion and leaderboard updates. Log actions in the respective API routes with userId, action, and metadata.
+
+---
+
 END OF DOCUMENT
+
+---
+
+# Roadmap Update Metadata
+
+Date: March 14, 2026
+
+---
+
+# Execution Prompts (New Additions From Latest Review)
+
+Use these prompts to implement the newly identified gaps and UI/UX enhancements above.
+
+## Apply Shock Correlation Shifts
+Prompt:
+Update `lib/monteCarlo.ts` to apply shock-adjusted correlation matrices when `ShockParameters` are provided. Use `applyShockToCorrelation` from `lib/shockEngine.ts`, recompute Cholesky decomposition for the shocked matrix, and ensure the simulation uses the shocked correlation only for the affected run. Add a unit test in `lib/monteCarlo.test.ts` to verify correlations shift in the expected direction.
+
+## Persist Simulation Assumptions + Seed + Shock
+Prompt:
+Store simulation assumptions, seed, and shock id in the database for auditability. Update the strategy save flow (or create a new `SimulationRun`) to persist: `assumptionsVersion`, `assumptions`, `seed`, `shockId`, and `shockModifiers`. Add the fields to Prisma schema and include them in API responses where needed.
+
+## Risk-Free Rate Configuration
+Prompt:
+Add `RISK_FREE_RATE` to environment configuration and pass it into `computeSimulationMetrics` in both API and UI. Update `lib/metrics.ts` callers so Sharpe uses the configured value. Add a test to validate Sharpe changes when risk-free rate is non-zero.
+
+## Persist AI Metadata
+Prompt:
+Store AI response metadata (model, tokens, latency) for risk and debate in the database. Add columns or a JSON blob to the strategy record or an `AiResponseLog` table. Update `/api/ai/risk` and `/api/ai/debate` to persist metadata alongside strategy runs.
+
+## AI Safety Guardrails
+Prompt:
+Add a post-response safety check that flags investment-advice language (e.g., “buy”, “sell”, “guaranteed”). If detected, replace with a neutral warning and include a disclaimer card in UI. Update prompts to discourage advice-like phrasing and add a short disclaimer banner to AI panels.
+
+## Surface Active Shock Beyond Simulate Page
+Prompt:
+Expose the active shock on the leaderboard and strategy detail pages. Add a lightweight API endpoint or reuse `/api/shocks/active` to fetch shock metadata. Display the shock title and a short summary near leaderboard header and in strategy detail metadata.
+
+## Weekly Shock Rotation
+Prompt:
+Add a scheduled job (cron/worker) that calls `/api/ai/shocks` weekly and sets the active shock. Ensure old shocks are deactivated and weekStart is set consistently (UTC Monday). Add a manual admin trigger route for testing.
+
+## Leaderboard Month Selector UI
+Prompt:
+Update `app/leaderboard/page.tsx` with a month picker (YYYY-MM). Pass `month` query param to the API, show the active month in the header, and allow quick navigation to previous/next months.
+
+## Strategy Detail Enhancements
+Prompt:
+Enhance `app/strategy/[id]/page.tsx` to include simulation charts (reuse `SimulationChart`), show active shock context, and render assumptions snapshot (means, vols, crash regime). Add a compact metrics sidebar and a “Back to History” link.
+
+## Server-Side Allocation Validation
+Prompt:
+Add server-side allocation validation in `/api/strategies` and `/api/ai/*` endpoints. Enforce totals = 100 and min/max per asset. Return 400 with a clear error if invalid. Add tests for invalid allocations.
+
+## Protect Routes With Redirect
+Prompt:
+Add middleware or server-side checks to redirect unauthenticated users from `/dashboard`, `/strategies`, `/strategy/[id]`, and `/leaderboard` to `/login`. Ensure API routes still return 401 JSON, not redirects.
+
+## Decide `SimulationRun` Model Usage
+Prompt:
+Either wire `SimulationRun` into the simulation flow (store each run, link to strategy) or remove the model if unused. If keeping, add API endpoints and a dashboard widget showing recent runs.
+
+---
+
+# UI/UX Execution Prompts
+
+## App Shell + Navigation
+Prompt:
+Implement a global app shell with top nav or sidebar, active route highlighting, and auth-aware user controls. Apply consistent page padding, section spacing, and breadcrumb on strategy detail.
+
+## Preset Allocations + Slider Controls
+Prompt:
+Add preset buttons (Conservative / Balanced / Growth) that set allocation values. Add numeric inputs next to sliders with lock toggles per asset and an auto-balance mode.
+
+## Allocation Validation UX
+Prompt:
+Add an allocation progress bar, inline error messaging, and a small “Fix allocation” helper that auto-corrects to 100% by adjusting unlocked assets.
+
+## Assumptions Panel
+Prompt:
+Add a collapsible “Assumptions” panel on the simulate page showing means, volatilities, correlation matrix, crash regime, and shock modifiers.
+
+## Baseline vs Shock Toggle
+Prompt:
+Add a toggle to run simulations with and without the active shock. Display delta metrics and a small comparison table.
+
+## AI Metadata + Save Toast
+Prompt:
+Show AI model/latency metadata in the Risk Explainer and Debate panels. After save, show a success toast with a link to the strategy detail page.
+
+## Allocation Visualization
+Prompt:
+Add an allocation donut or stacked bar chart beside sliders to visualize weights in real time.
+
+## Strategy Detail Charts
+Prompt:
+Render return distribution histogram and scenario path chart on strategy detail, using saved simulation results or re-run with stored seed.
+
+## Leaderboard Row Expanders
+Prompt:
+Add row expanders to reveal allocation summary and key risk warnings under each leaderboard entry.
+
+## Metric Tooltips
+Prompt:
+Add tooltips for Sharpe, VaR, CVaR, drawdown, and probability of loss with concise definitions.
+
+## Onboarding + Glossary
+Prompt:
+Create a first-run onboarding flow and a glossary drawer explaining metrics and assumptions with plain-language examples.
+
+## Accessibility + Polish
+Prompt:
+Improve slider keyboard support, add focus-visible styles, audit dark-mode contrast, and enhance empty states with actionable next steps.
