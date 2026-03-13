@@ -50,3 +50,18 @@ model Strategy {
 
   @@index([userId])
 }
+
+model ShockEvent {
+  id           String   @id @default(cuid())
+  title        String
+  description  String
+  marketImpact Json
+  modifiers    Json
+  active       Boolean  @default(false)
+  weekStart    DateTime
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([active])
+  @@index([weekStart])
+}
