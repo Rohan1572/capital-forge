@@ -65,3 +65,14 @@ model ShockEvent {
   @@index([active])
   @@index([weekStart])
 }
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  userId    String?
+  action    String
+  metadata  Json?
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([action])
+}

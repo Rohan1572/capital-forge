@@ -22,6 +22,18 @@ export async function POST(request: Request) {
       },
     });
 
+    await prisma.auditLog.create({
+      data: {
+        userId: user.id,
+        action: "strategy.create",
+        metadata: {
+          strategyId: strategy.id,
+          allocation: body.allocation,
+          metrics: body.metrics,
+        },
+      },
+    });
+
     return NextResponse.json({ data: strategy }, { status: 201 });
   } catch (error) {
     console.error("Failed to create strategy", error);
@@ -67,6 +79,16 @@ export async function DELETE(request: Request) {
       where: {
         id,
         userId: user.id,
+      },
+    });
+
+    await prisma.auditLog.create({
+      data: {
+        userId: user.id,
+        action: "strategy.delete",
+        metadata: {
+          strategyId: id,
+        },
       },
     });
 

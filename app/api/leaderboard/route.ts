@@ -120,6 +120,18 @@ export async function GET(request: Request) {
       rank: index + 1,
     }));
 
+    await prisma.auditLog.create({
+      data: {
+        action: "leaderboard.fetch",
+        metadata: {
+          month: monthRange.label,
+          page,
+          pageSize,
+          total,
+        },
+      },
+    });
+
     return NextResponse.json({
       data: ranked,
       month: monthRange.label,
