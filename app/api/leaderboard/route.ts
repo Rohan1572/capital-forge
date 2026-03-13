@@ -51,18 +51,54 @@ function parsePositiveInt(value: string | null, fallback: number) {
   return parsed;
 }
 
+function buildMonthRange(monthParam: string | null): { start: Date; end: Date; label: string } {
+  if (monthParam) {
+    const match = /^(\d{4})-(\d{2})$/.exec(monthParam);
+    if (match) {
+      const year = Number.parseInt(match[1], 10);
+      const month = Number.parseInt(match[2], 10);
+      if (Number.isFinite(year) && month >= 1 && month <= 12) {
+        const start = new Date(Date.UTC(year, month - 1, 1));
+        const end = new Date(Date.UTC(year, month, 1));
+        return { start, end, label: monthParam };
+      }
+    }
+  }
+
+  const now = new Date();
+  const start = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+  const end = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1));
+  const label = `${start.getUTCFullYear()}-${String(start.getUTCMonth() + 1).padStart(2, "0")}`;
+  return { start, end, label };
+}
+
 export async function GET(request: Request) {
   try {
     const url = new URL(request.url);
     const page = parsePositiveInt(url.searchParams.get("page"), 1);
     const pageSize = Math.min(parsePositiveInt(url.searchParams.get("pageSize"), 25), 100);
     const skip = (page - 1) * pageSize;
+    const monthParam = url.searchParams.get("month");
+    const monthRange = buildMonthRange(monthParam);
 
     const [total, strategies] = await Promise.all([
-      prisma.strategy.count(),
+      prisma.strategy.count({
+        where: {
+          createdAt: {
+            gte: monthRange.start,
+            lt: monthRange.end,
+          },
+        },
+      }),
       prisma.strategy.findMany({
         include: { user: true },
         orderBy: { createdAt: "desc" },
+        where: {
+          createdAt: {
+            gte: monthRange.start,
+            lt: monthRange.end,
+          },
+        },
         skip,
         take: pageSize,
       }),
@@ -86,6 +122,7 @@ export async function GET(request: Request) {
 
     return NextResponse.json({
       data: ranked,
+      month: monthRange.label,
       pagination: {
         page,
         pageSize,
