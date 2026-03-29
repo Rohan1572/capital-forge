@@ -4,6 +4,16 @@ import { useMemo, type ReactNode } from "react";
 
 type RiskExplainerPanelProps = {
   markdown: string;
+  meta?: {
+    model: string;
+    latencyMs: number;
+    cached?: boolean;
+    usage?: {
+      inputTokens?: number;
+      outputTokens?: number;
+      totalTokens?: number;
+    };
+  };
 };
 
 const warningKeywords = ["warning", "risk", "drawdown", "var", "tail", "loss", "downside"];
@@ -72,17 +82,37 @@ function renderMarkdownBlocks(markdown: string) {
   return elements;
 }
 
-export function RiskExplainerPanel({ markdown }: RiskExplainerPanelProps) {
+export function RiskExplainerPanel({ markdown, meta }: RiskExplainerPanelProps) {
   const warnings = useMemo(() => extractRiskWarnings(markdown), [markdown]);
   const markdownBlocks = useMemo(() => renderMarkdownBlocks(markdown), [markdown]);
 
   return (
     <section className="space-y-5 rounded-xl border border-zinc-800 bg-zinc-900/80 p-6">
-      <header className="space-y-1">
+      <header className="space-y-3">
         <h2 className="text-xl font-semibold text-zinc-100">AI Risk Explainer</h2>
         <p className="text-sm text-zinc-400">
           Structured portfolio critique with emphasis on downside scenarios.
         </p>
+        {meta ? (
+          <div className="flex flex-wrap items-center gap-2 text-xs">
+            <span className="rounded-full border border-zinc-700 bg-zinc-950 px-2.5 py-1 text-zinc-300">
+              Model: {meta.model}
+            </span>
+            <span className="rounded-full border border-zinc-700 bg-zinc-950 px-2.5 py-1 text-zinc-300">
+              Latency: {meta.latencyMs}ms
+            </span>
+            {meta.cached ? (
+              <span className="rounded-full border border-cyan-500/40 bg-cyan-950/30 px-2.5 py-1 text-cyan-200">
+                Cached
+              </span>
+            ) : null}
+            {meta.usage?.totalTokens ? (
+              <span className="rounded-full border border-zinc-700 bg-zinc-950 px-2.5 py-1 text-zinc-300">
+                Tokens: {meta.usage.totalTokens}
+              </span>
+            ) : null}
+          </div>
+        ) : null}
       </header>
 
       {warnings.length > 0 ? (

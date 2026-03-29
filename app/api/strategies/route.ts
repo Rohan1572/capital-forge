@@ -9,17 +9,33 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const body = (await request.json()) as { allocation?: unknown; metrics?: unknown };
+    const body = (await request.json()) as {
+      allocation?: unknown;
+      metrics?: unknown;
+      simulationResults?: unknown;
+      simulationSeed?: unknown;
+      simulationMode?: unknown;
+      simulationShock?: unknown;
+    };
     if (!body.allocation || !body.metrics) {
       return NextResponse.json({ error: "allocation and metrics are required" }, { status: 400 });
     }
 
+    const strategyData = {
+      userId: user.id,
+      allocation: body.allocation,
+      metrics: body.metrics,
+      simulationResults: body.simulationResults ?? null,
+      simulationSeed:
+        typeof body.simulationSeed === "number" && Number.isInteger(body.simulationSeed)
+          ? body.simulationSeed
+          : null,
+      simulationMode: typeof body.simulationMode === "string" ? body.simulationMode : null,
+      simulationShock: body.simulationShock ?? null,
+    } as unknown as Parameters<typeof prisma.strategy.create>[0]["data"];
+
     const strategy = await prisma.strategy.create({
-      data: {
-        userId: user.id,
-        allocation: body.allocation,
-        metrics: body.metrics,
-      },
+      data: strategyData,
     });
 
     await prisma.auditLog.create({
@@ -30,6 +46,11 @@ export async function POST(request: Request) {
           strategyId: strategy.id,
           allocation: body.allocation,
           metrics: body.metrics,
+          simulationSeed:
+            typeof body.simulationSeed === "number" && Number.isInteger(body.simulationSeed)
+              ? body.simulationSeed
+              : null,
+          simulationMode: typeof body.simulationMode === "string" ? body.simulationMode : null,
         },
       },
     });

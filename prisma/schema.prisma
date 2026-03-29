@@ -41,12 +41,16 @@ model Session {
 }
 
 model Strategy {
-  id         String   @id @default(cuid())
-  userId     String
-  allocation Json
-  metrics    Json
-  createdAt  DateTime @default(now())
-  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id                String   @id @default(cuid())
+  userId            String
+  allocation        Json
+  metrics           Json
+  simulationResults Json?
+  simulationSeed    Int?
+  simulationMode    String?
+  simulationShock   Json?
+  createdAt         DateTime @default(now())
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
 }

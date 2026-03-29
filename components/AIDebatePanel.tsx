@@ -4,6 +4,21 @@ import { parseDebateSections } from "@/lib/debateEngine";
 
 type AIDebatePanelProps = {
   calls: DebateAgentCall[];
+  meta?: {
+    model: string;
+    latencyMs: number;
+    cached?: boolean;
+    calls?: Array<{
+      role: DebateAgentCall["role"];
+      model: string;
+      latencyMs: number;
+      usage?: {
+        inputTokens?: number;
+        outputTokens?: number;
+        totalTokens?: number;
+      };
+    }>;
+  };
 };
 
 const roleAccent: Record<DebateAgentCall["role"], string> = {
@@ -34,20 +49,38 @@ function renderList(items: string[], fallback: string) {
   );
 }
 
-export function AIDebatePanel({ calls }: AIDebatePanelProps) {
+export function AIDebatePanel({ calls, meta }: AIDebatePanelProps) {
   return (
     <section className="rounded-xl border border-zinc-800 bg-zinc-900/80 p-6">
-      <header className="flex flex-wrap items-center justify-between gap-2">
-        <h2 className="text-lg font-semibold text-zinc-100">AI Debate Panel</h2>
-        <span className="rounded-full bg-zinc-800 px-3 py-1 text-xs uppercase tracking-wide text-zinc-300">
-          Structured Debate Output
-        </span>
+      <header className="space-y-3">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h2 className="text-lg font-semibold text-zinc-100">AI Debate Panel</h2>
+          <span className="rounded-full bg-zinc-800 px-3 py-1 text-xs uppercase tracking-wide text-zinc-300">
+            Structured Debate Output
+          </span>
+        </div>
+        {meta ? (
+          <div className="flex flex-wrap items-center gap-2 text-xs">
+            <span className="rounded-full border border-zinc-700 bg-zinc-950 px-2.5 py-1 text-zinc-300">
+              Model: {meta.model}
+            </span>
+            <span className="rounded-full border border-zinc-700 bg-zinc-950 px-2.5 py-1 text-zinc-300">
+              Latency: {meta.latencyMs}ms
+            </span>
+            {meta.cached ? (
+              <span className="rounded-full border border-cyan-500/40 bg-cyan-950/30 px-2.5 py-1 text-cyan-200">
+                Cached
+              </span>
+            ) : null}
+          </div>
+        ) : null}
       </header>
 
       <div className="mt-5 space-y-4">
         {calls.map((call, index) => {
           const profile = DEBATE_AGENT_PROFILES[call.role];
           const sections = parseDebateSections(call.response);
+          const callMeta = meta?.calls?.[index];
 
           return (
             <article
@@ -59,11 +92,23 @@ export function AIDebatePanel({ calls }: AIDebatePanelProps) {
                   <p className="text-sm uppercase tracking-wide text-zinc-300">Agent {index + 1}</p>
                   <h3 className="text-base font-semibold text-zinc-100">{profile.name}</h3>
                 </div>
-                <span
-                  className={`rounded-full px-2 py-1 text-xs font-medium ${roleBadge[call.role]}`}
-                >
-                  {profile.focus}
-                </span>
+                <div className="flex flex-wrap items-center gap-2">
+                  {callMeta ? (
+                    <>
+                      <span className="rounded-full border border-zinc-700 bg-zinc-950/70 px-2 py-1 text-[11px] text-zinc-300">
+                        {callMeta.model}
+                      </span>
+                      <span className="rounded-full border border-zinc-700 bg-zinc-950/70 px-2 py-1 text-[11px] text-zinc-300">
+                        {callMeta.latencyMs}ms
+                      </span>
+                    </>
+                  ) : null}
+                  <span
+                    className={`rounded-full px-2 py-1 text-xs font-medium ${roleBadge[call.role]}`}
+                  >
+                    {profile.focus}
+                  </span>
+                </div>
               </div>
 
               <div className="mt-4 grid gap-4 md:grid-cols-3">

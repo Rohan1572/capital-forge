@@ -5,6 +5,7 @@ import Link from "next/link";
 import { SkeletonBlock, SkeletonStack } from "@/components/LoadingSkeleton";
 import type { Allocation } from "@/lib/monteCarlo";
 import type { SimulationMetrics } from "@/lib/metrics";
+import { MetricLabel } from "@/components/MetricLabel";
 
 type StrategyRecord = {
   id: string;
@@ -111,7 +112,7 @@ export default function StrategyHistoryPage() {
   }
 
   return (
-    <main className="mx-auto flex min-h-screen w-full max-w-6xl flex-col gap-8 px-6 py-12">
+    <>
       <header className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <h1 className="text-3xl font-semibold">Strategy History</h1>
@@ -149,21 +150,39 @@ export default function StrategyHistoryPage() {
 
       {!isLoading && strategies.length === 0 ? (
         <section className="rounded-xl border border-zinc-800 bg-zinc-900/80 p-6 text-zinc-300">
-          No saved strategies yet. Run a simulation to create one.
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <div>
+              <h2 className="text-lg font-semibold text-zinc-100">No saved strategies yet</h2>
+              <p className="mt-2 max-w-2xl text-sm text-zinc-400">
+                Run your first simulation to store a portfolio snapshot, then come back here to
+                compare outcomes and delete older runs.
+              </p>
+            </div>
+            <Link
+              href="/simulate"
+              className="rounded-full border border-amber-400/50 bg-amber-400/10 px-4 py-2 text-sm font-medium text-amber-100 transition hover:border-amber-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-900"
+            >
+              Start simulating
+            </Link>
+          </div>
         </section>
       ) : null}
 
       {comparison ? (
         <section className="grid gap-4 md:grid-cols-4">
           <div className="rounded-xl border border-zinc-800 bg-zinc-900/80 p-4">
-            <p className="text-xs uppercase text-zinc-500">Best Sharpe</p>
+            <p className="text-xs uppercase text-zinc-500">
+              <MetricLabel metric="sharpeRatio" label="Best Sharpe" />
+            </p>
             <p className="mt-2 text-lg font-semibold">
               {formatNumber(comparison.bestSharpe.metrics.sharpeRatio)}
             </p>
             <p className="text-xs text-zinc-400">{formatDate(comparison.bestSharpe.createdAt)}</p>
           </div>
           <div className="rounded-xl border border-zinc-800 bg-zinc-900/80 p-4">
-            <p className="text-xs uppercase text-zinc-500">Lowest Drawdown</p>
+            <p className="text-xs uppercase text-zinc-500">
+              <MetricLabel metric="maxDrawdown" label="Lowest Drawdown" />
+            </p>
             <p className="mt-2 text-lg font-semibold">
               {formatPercent(comparison.lowestDrawdown.metrics.maxDrawdown)}
             </p>
@@ -172,14 +191,18 @@ export default function StrategyHistoryPage() {
             </p>
           </div>
           <div className="rounded-xl border border-zinc-800 bg-zinc-900/80 p-4">
-            <p className="text-xs uppercase text-zinc-500">Best VaR (5%)</p>
+            <p className="text-xs uppercase text-zinc-500">
+              <MetricLabel metric="valueAtRisk5" label="Best VaR (5%)" />
+            </p>
             <p className="mt-2 text-lg font-semibold">
               {formatPercent(comparison.lowestVar.metrics.valueAtRisk5)}
             </p>
             <p className="text-xs text-zinc-400">{formatDate(comparison.lowestVar.createdAt)}</p>
           </div>
           <div className="rounded-xl border border-zinc-800 bg-zinc-900/80 p-4">
-            <p className="text-xs uppercase text-zinc-500">Best CVaR (95%)</p>
+            <p className="text-xs uppercase text-zinc-500">
+              <MetricLabel metric="conditionalValueAtRisk95" label="Best CVaR (95%)" />
+            </p>
             <p className="mt-2 text-lg font-semibold">
               {formatPercent(comparison.lowestCvar.metrics.conditionalValueAtRisk95)}
             </p>
@@ -197,11 +220,21 @@ export default function StrategyHistoryPage() {
                   <th className="px-4 py-3">Created</th>
                   <th className="px-4 py-3">Allocation</th>
                   <th className="px-4 py-3">Expected Return</th>
-                  <th className="px-4 py-3">Sharpe</th>
-                  <th className="px-4 py-3">Drawdown</th>
-                  <th className="px-4 py-3">VaR (5%)</th>
-                  <th className="px-4 py-3">CVaR (95%)</th>
-                  <th className="px-4 py-3">Loss &gt; 30%</th>
+                  <th className="px-4 py-3">
+                    <MetricLabel metric="sharpeRatio" label="Sharpe" />
+                  </th>
+                  <th className="px-4 py-3">
+                    <MetricLabel metric="maxDrawdown" label="Drawdown" />
+                  </th>
+                  <th className="px-4 py-3">
+                    <MetricLabel metric="valueAtRisk5" label="VaR (5%)" />
+                  </th>
+                  <th className="px-4 py-3">
+                    <MetricLabel metric="conditionalValueAtRisk95" label="CVaR (95%)" />
+                  </th>
+                  <th className="px-4 py-3">
+                    <MetricLabel metric="probabilityOfLossOver30" label="Loss &gt; 30%" />
+                  </th>
                   <th className="px-4 py-3"></th>
                 </tr>
               </thead>
@@ -239,6 +272,6 @@ export default function StrategyHistoryPage() {
           </div>
         </section>
       ) : null}
-    </main>
+    </>
   );
 }

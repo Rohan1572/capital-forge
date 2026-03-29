@@ -121,11 +121,31 @@ export function SimulationChart({ values }: SimulationChartProps) {
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <RiskCard label="Expected Return" value={formatPercent(metrics.expectedReturn)} />
         <RiskCard label="Volatility (Std Dev)" value={formatPercent(metrics.standardDeviation)} />
-        <RiskCard label="Sharpe Ratio" value={metrics.sharpeRatio.toFixed(2)} />
-        <RiskCard label="Max Drawdown" value={formatPercent(metrics.maxDrawdown)} />
-        <RiskCard label="VaR (5%)" value={formatPercent(metrics.valueAtRisk5)} />
-        <RiskCard label="CVaR (95%)" value={formatPercent(metrics.conditionalValueAtRisk95)} />
-        <RiskCard label="Prob. Loss > 30%" value={formatPercent(metrics.probabilityOfLossOver30)} />
+        <RiskCard
+          label="Sharpe Ratio"
+          metric="sharpeRatio"
+          value={metrics.sharpeRatio.toFixed(2)}
+        />
+        <RiskCard
+          label="Max Drawdown"
+          metric="maxDrawdown"
+          value={formatPercent(metrics.maxDrawdown)}
+        />
+        <RiskCard
+          label="VaR (5%)"
+          metric="valueAtRisk5"
+          value={formatPercent(metrics.valueAtRisk5)}
+        />
+        <RiskCard
+          label="CVaR (95%)"
+          metric="conditionalValueAtRisk95"
+          value={formatPercent(metrics.conditionalValueAtRisk95)}
+        />
+        <RiskCard
+          label="Prob. Loss > 30%"
+          metric="probabilityOfLossOver30"
+          value={formatPercent(metrics.probabilityOfLossOver30)}
+        />
       </div>
 
       <div className="grid gap-6 lg:grid-cols-5">

@@ -6,7 +6,7 @@ export default async function DashboardPage() {
   const user = await getSessionUser();
 
   return (
-    <main className="mx-auto flex min-h-screen w-full max-w-5xl flex-col gap-4 px-6 py-12">
+    <>
       <header className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-semibold">Dashboard</h1>
@@ -27,6 +27,6 @@ export default async function DashboardPage() {
           View strategy history
         </Link>
       </div>
-    </main>
+    </>
   );
 }

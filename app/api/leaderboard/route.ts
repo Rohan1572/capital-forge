@@ -13,6 +13,7 @@ type LeaderboardEntry = {
   id: string;
   userId: string;
   name: string;
+  allocation: Record<string, unknown>;
   metrics: StrategyMetrics;
   createdAt: string;
   rank: number;
@@ -108,6 +109,7 @@ export async function GET(request: Request) {
       id: strategy.id,
       userId: strategy.userId,
       name: getName(strategy.user),
+      allocation: (strategy.allocation as Record<string, unknown>) ?? {},
       metrics: (strategy.metrics as StrategyMetrics) ?? {},
       createdAt: strategy.createdAt.toISOString(),
       rank: 0,
