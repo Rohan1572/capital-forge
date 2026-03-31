@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getSessionUser } from "@/lib/session";
+import { requireSameOrigin } from "@/lib/requestSecurity";
 import { prisma } from "@/lib/prisma";
 import { createSimulationRun } from "@/lib/simulationRun";
 import { buildSimulationConfigMetadata } from "@/lib/simulationConfig";
@@ -43,6 +44,10 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
+    const originError = requireSameOrigin(request);
+    if (originError) {
+      return originError;
+    }
     const user = await getSessionUser();
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

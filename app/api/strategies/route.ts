@@ -11,73 +11,85 @@ import { buildSimulationConfigMetadata } from "@/lib/simulationConfig";
 import { createSimulationRun } from "@/lib/simulationRun";
 import { prisma } from "@/lib/prisma";
 import { getSessionUser } from "@/lib/session";
+import { requireSameOrigin } from "@/lib/requestSecurity";
 
-export async function POST(request: Request) {
-  try {
-    const user = await getSessionUser();
-    if (!user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+type StrategyPostBody = {
+  allocation?: unknown;
+  metrics?: unknown;
+  assumptionsVersion?: unknown;
+  assumptions?: unknown;
+  seed?: unknown;
+  shockId?: unknown;
+  shockModifiers?: unknown;
+  simulationLatencyMs?: unknown;
+  simulationResults?: unknown;
+  simulationSeed?: unknown;
+  simulationMode?: unknown;
+  simulationShock?: unknown;
+};
 
-    const body = (await request.json()) as {
-      allocation?: unknown;
-      metrics?: unknown;
-      assumptionsVersion?: unknown;
-      assumptions?: unknown;
-      seed?: unknown;
-      shockId?: unknown;
-      shockModifiers?: unknown;
-      simulationLatencyMs?: unknown;
-      simulationResults?: unknown;
-      simulationSeed?: unknown;
-      simulationMode?: unknown;
-      simulationShock?: unknown;
+function readTrimmedString(value: unknown) {
+  return typeof value === "string" && value.trim() ? value.trim() : null;
+}
+
+function readInteger(value: unknown) {
+  return typeof value === "number" && Number.isInteger(value) ? value : null;
+}
+
+function readSimulationResults(value: unknown) {
+  return Array.isArray(value) &&
+    value.every((entry) => typeof entry === "number" && Number.isFinite(entry))
+    ? (value as number[])
+    : null;
+}
+
+function buildStrategyPayload(userId: string, body: StrategyPostBody) {
+  if (!body.allocation || !body.metrics) {
+    return {
+      error: NextResponse.json({ error: "allocation and metrics are required" }, { status: 400 }),
     };
-    if (!body.allocation || !body.metrics) {
-      return NextResponse.json({ error: "allocation and metrics are required" }, { status: 400 });
-    }
+  }
 
-    const allocationValidation = validateAllocation(body.allocation);
-    if (!allocationValidation.ok) {
-      return NextResponse.json(
+  const allocationValidation = validateAllocation(body.allocation);
+  if (!allocationValidation.ok) {
+    return {
+      error: NextResponse.json(
         { error: `Invalid allocation: ${allocationValidation.error}` },
         { status: 400 },
-      );
-    }
+      ),
+    };
+  }
 
-    const seed =
-      typeof body.seed === "number" && Number.isInteger(body.seed)
-        ? body.seed
-        : typeof body.simulationSeed === "number" && Number.isInteger(body.simulationSeed)
-          ? body.simulationSeed
-          : null;
-    const shockId =
-      typeof body.shockId === "string" && body.shockId.trim() ? body.shockId.trim() : null;
-    const assumptionsVersion =
-      typeof body.assumptionsVersion === "string" && body.assumptionsVersion.trim()
-        ? body.assumptionsVersion.trim()
-        : SIMULATION_ASSUMPTIONS_VERSION;
-    const assumptions =
-      body.assumptions == null ? buildSimulationAssumptionsSnapshot() : body.assumptions;
-    const simulationResults =
-      Array.isArray(body.simulationResults) &&
-      body.simulationResults.every((entry) => typeof entry === "number" && Number.isFinite(entry))
-        ? (body.simulationResults as number[])
-        : null;
-    const metrics = simulationResults
-      ? computeSimulationMetrics(simulationResults, RISK_FREE_RATE)
-      : body.metrics;
-    const shockModifiers =
-      body.shockModifiers == null ? DbNull : (body.shockModifiers as InputJsonValue);
-    const simulationLatencyMs =
-      typeof body.simulationLatencyMs === "number" && Number.isFinite(body.simulationLatencyMs)
-        ? Math.max(0, Math.round(body.simulationLatencyMs))
-        : null;
-    const simulationShock =
-      body.simulationShock == null ? DbNull : (body.simulationShock as InputJsonValue);
+  const seed = readInteger(body.seed) ?? readInteger(body.simulationSeed);
+  const shockId = readTrimmedString(body.shockId);
+  const assumptionsVersion =
+    readTrimmedString(body.assumptionsVersion) ?? SIMULATION_ASSUMPTIONS_VERSION;
+  const assumptions = body.assumptions ?? buildSimulationAssumptionsSnapshot();
+  const simulationResults = readSimulationResults(body.simulationResults);
+  const metrics = simulationResults
+    ? computeSimulationMetrics(simulationResults, RISK_FREE_RATE)
+    : body.metrics;
+  const shockModifiers =
+    body.shockModifiers == null ? DbNull : (body.shockModifiers as InputJsonValue);
+  const simulationLatencyMsValue = readInteger(body.simulationLatencyMs);
+  const simulationLatencyMs =
+    simulationLatencyMsValue == null ? null : Math.max(0, Math.round(simulationLatencyMsValue));
+  const simulationShock =
+    body.simulationShock == null ? DbNull : (body.simulationShock as InputJsonValue);
+  const simulationMode = typeof body.simulationMode === "string" ? body.simulationMode : null;
 
-    const strategyData = {
-      userId: user.id,
+  return {
+    allocationValidation,
+    assumptions,
+    assumptionsVersion,
+    metrics,
+    seed,
+    shockId,
+    shockModifiers,
+    simulationLatencyMs,
+    simulationMode,
+    strategyData: {
+      userId,
       allocation: allocationValidation.allocation as InputJsonValue,
       metrics: metrics as InputJsonValue,
       assumptionsVersion,
@@ -88,24 +100,72 @@ export async function POST(request: Request) {
       simulationResults:
         body.simulationResults == null ? DbNull : (body.simulationResults as InputJsonValue),
       simulationSeed: seed,
-      simulationMode: typeof body.simulationMode === "string" ? body.simulationMode : null,
+      simulationMode,
       simulationShock,
-    };
+    },
+  };
+}
+
+function buildStrategyRunName(simulationMode: string | null) {
+  return `${simulationMode ?? "baseline"} strategy run`;
+}
+
+function buildStrategyAuditMetadata(params: {
+  strategyId: string;
+  allocation: Record<string, unknown>;
+  metrics: unknown;
+  assumptionsVersion: string;
+  seed: number | null;
+  shockId: string | null;
+  shockModifiers: unknown;
+  simulationLatencyMs: number | null;
+  simulationMode: string | null;
+}) {
+  return {
+    strategyId: params.strategyId,
+    allocation: params.allocation,
+    metrics: params.metrics,
+    assumptionsVersion: params.assumptionsVersion,
+    seed: params.seed,
+    shockId: params.shockId,
+    shockModifiers: params.shockModifiers,
+    simulationLatencyMs: params.simulationLatencyMs,
+    simulationMode: params.simulationMode,
+  };
+}
+
+export async function POST(request: Request) {
+  try {
+    const originError = requireSameOrigin(request);
+    if (originError) {
+      return originError;
+    }
+
+    const user = await getSessionUser();
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const body = (await request.json()) as StrategyPostBody;
+    const payload = buildStrategyPayload(user.id, body);
+    if ("error" in payload) {
+      return payload.error;
+    }
 
     const strategy = await prisma.strategy.create({
-      data: strategyData,
+      data: payload.strategyData,
     });
 
     try {
       await createSimulationRun({
         userId: user.id,
         strategyId: strategy.id,
-        name: `${typeof body.simulationMode === "string" ? body.simulationMode : "baseline"} strategy run`,
+        name: buildStrategyRunName(payload.simulationMode),
         status: "completed",
-        assumptionsVersion,
-        assumptions,
-        seed,
-        shockId,
+        assumptionsVersion: payload.assumptionsVersion,
+        assumptions: payload.assumptions,
+        seed: payload.seed,
+        shockId: payload.shockId,
         shockModifiers: body.shockModifiers ?? null,
         results: body.simulationResults ?? null,
       });
@@ -117,17 +177,17 @@ export async function POST(request: Request) {
       data: {
         userId: user.id,
         action: "strategy.create",
-        metadata: {
+        metadata: buildStrategyAuditMetadata({
           strategyId: strategy.id,
-          allocation: allocationValidation.allocation,
-          metrics,
-          assumptionsVersion,
-          seed,
-          shockId,
+          allocation: payload.allocationValidation.allocation,
+          metrics: payload.metrics,
+          assumptionsVersion: payload.assumptionsVersion,
+          seed: payload.seed,
+          shockId: payload.shockId,
           shockModifiers: body.shockModifiers ?? null,
-          simulationLatencyMs,
-          simulationMode: typeof body.simulationMode === "string" ? body.simulationMode : null,
-        },
+          simulationLatencyMs: payload.simulationLatencyMs,
+          simulationMode: payload.simulationMode,
+        }),
       },
     });
 
@@ -135,7 +195,10 @@ export async function POST(request: Request) {
       {
         data: {
           ...strategy,
-          simulationConfig: buildSimulationConfigMetadata(assumptionsVersion, assumptions),
+          simulationConfig: buildSimulationConfigMetadata(
+            payload.assumptionsVersion,
+            payload.assumptions,
+          ),
         },
       },
       { status: 201 },
@@ -176,6 +239,10 @@ export async function GET() {
 
 export async function DELETE(request: Request) {
   try {
+    const originError = requireSameOrigin(request);
+    if (originError) {
+      return originError;
+    }
     const user = await getSessionUser();
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

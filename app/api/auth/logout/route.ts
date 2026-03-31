@@ -1,8 +1,14 @@
 import { NextResponse } from "next/server";
+import { requireSameOrigin } from "@/lib/requestSecurity";
 import { cookies } from "next/headers";
 import { deleteSession, getSessionClearCookieOptions, getSessionCookieName } from "@/lib/auth";
 
-export async function POST() {
+export async function POST(request: Request) {
+  const originError = requireSameOrigin(request);
+  if (originError) {
+    return originError;
+  }
+
   const cookieStore = await cookies();
   const token = cookieStore.get(getSessionCookieName())?.value;
 

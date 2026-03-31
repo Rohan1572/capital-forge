@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { requireSameOrigin } from "@/lib/requestSecurity";
 import {
   createSession,
   createUser,
@@ -12,6 +13,11 @@ function isValidEmail(email: string) {
 }
 
 export async function POST(request: Request) {
+  const originError = requireSameOrigin(request);
+  if (originError) {
+    return originError;
+  }
+
   const body = (await request.json()) as { email?: string; password?: string; name?: string };
   const email = body.email?.trim().toLowerCase();
   const password = body.password ?? "";

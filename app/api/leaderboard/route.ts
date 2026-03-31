@@ -11,7 +11,6 @@ type StrategyMetrics = {
 
 type LeaderboardEntry = {
   id: string;
-  userId: string;
   name: string;
   allocation: Record<string, unknown>;
   metrics: StrategyMetrics;
@@ -151,7 +150,7 @@ export async function GET(request: Request) {
       const user = usersById.get(strategy.userId);
       return {
         id: strategy.id,
-        userId: strategy.userId,
+
         name: user ? getName(user) : "Anonymous",
         allocation: normalizeAllocation(strategy.allocation),
         metrics: normalizeMetrics(strategy.metrics),

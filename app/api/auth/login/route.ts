@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { requireSameOrigin } from "@/lib/requestSecurity";
 import {
   createSession,
   getSessionCookieName,
@@ -7,6 +8,11 @@ import {
 } from "@/lib/auth";
 
 export async function POST(request: Request) {
+  const originError = requireSameOrigin(request);
+  if (originError) {
+    return originError;
+  }
+
   const body = (await request.json()) as { email?: string; password?: string };
   const email = body.email?.trim().toLowerCase();
   const password = body.password ?? "";

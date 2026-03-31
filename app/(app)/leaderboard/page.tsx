@@ -16,7 +16,6 @@ type LeaderboardMetrics = {
 
 type LeaderboardEntry = {
   id: string;
-  userId: string;
   name: string;
   allocation: Record<string, unknown>;
   metrics: LeaderboardMetrics;
