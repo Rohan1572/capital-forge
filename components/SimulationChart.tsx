@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
+import { type ValueType } from "recharts/types/component/DefaultTooltipContent";
 import {
   Bar,
   BarChart,
@@ -16,9 +17,9 @@ import {
 import { RiskCard } from "@/components/RiskCard";
 import { computeSimulationMetrics } from "@/lib/metrics";
 
-type SimulationChartProps = {
-  values: number[];
-};
+type SimulationChartProps = Readonly<{
+  values: readonly number[];
+}>;
 
 type HistogramBin = {
   range: string;
@@ -35,7 +36,7 @@ type PathPoint = {
 const HISTOGRAM_BINS = 24;
 const PATH_STEPS = 48;
 
-function buildHistogram(values: number[], bins: number): HistogramBin[] {
+function buildHistogram(values: readonly number[], bins: number): HistogramBin[] {
   if (values.length === 0) return [];
 
   const min = Math.min(...values);
@@ -64,7 +65,7 @@ function buildHistogram(values: number[], bins: number): HistogramBin[] {
   });
 }
 
-function buildPathSeries(values: number[], steps: number): PathPoint[] {
+function buildPathSeries(values: readonly number[], steps: number): PathPoint[] {
   if (values.length === 0) return [];
 
   const sorted = [...values].sort((a, b) => a - b);
@@ -99,6 +100,18 @@ function buildPathSeries(values: number[], steps: number): PathPoint[] {
 
 function formatPercent(value: number, digits = 2): string {
   return `${(value * 100).toFixed(digits)}%`;
+}
+
+function formatScenarioTooltipValue(value: ValueType | undefined) {
+  if (typeof value === "number") {
+    return `${value.toFixed(2)}%`;
+  }
+
+  if (Array.isArray(value)) {
+    return value.join(", ");
+  }
+
+  return value ?? "N/A";
 }
 
 export function SimulationChart({ values }: SimulationChartProps) {
@@ -185,9 +198,7 @@ export function SimulationChart({ values }: SimulationChartProps) {
                 <XAxis dataKey="step" tick={{ fill: "#a1a1aa", fontSize: 11 }} />
                 <YAxis tick={{ fill: "#a1a1aa", fontSize: 11 }} unit="%" />
                 <Tooltip
-                  formatter={(value: number | undefined) =>
-                    value === undefined ? "N/A" : `${value.toFixed(2)}%`
-                  }
+                  formatter={formatScenarioTooltipValue}
                   contentStyle={{
                     background: "#09090b",
                     borderColor: "#3f3f46",

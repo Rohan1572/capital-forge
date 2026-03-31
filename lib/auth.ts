@@ -1,6 +1,9 @@
 import crypto from "crypto";
 import { prisma } from "@/lib/prisma";
 
+export type AuthUser = Pick<PrismaUser, "id" | "email" | "name" | "createdAt">;
+export type AuthSession = PrismaSession;
+
 const SESSION_COOKIE_NAME = "cf_session";
 const SESSION_TTL_DAYS = 30;
 
@@ -42,7 +45,7 @@ export async function verifyPassword(password: string, storedHash: string) {
   return crypto.timingSafeEqual(storedBuffer, derivedKey);
 }
 
-export async function createUser(payload: { email: string; password: string; name?: string }) {
+export async function createUser(payload: { email: string; password: string; name?: string }): Promise<AuthUser> {
   const passwordHash = await hashPassword(payload.password);
 
   return prisma.user.create({
@@ -54,7 +57,7 @@ export async function createUser(payload: { email: string; password: string; nam
   });
 }
 
-export async function verifyUserCredentials(email: string, password: string) {
+export async function verifyUserCredentials(email: string, password: string): Promise<AuthUser | null> {
   const user = await prisma.user.findUnique({ where: { email } });
   if (!user) return null;
 
@@ -64,7 +67,7 @@ export async function verifyUserCredentials(email: string, password: string) {
   return user;
 }
 
-export async function createSession(userId: string) {
+export async function createSession(userId: string): Promise<AuthSession> {
   const token = crypto.randomBytes(32).toString("hex");
   const expiresAt = getSessionExpiry();
 

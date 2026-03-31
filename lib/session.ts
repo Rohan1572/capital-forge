@@ -2,16 +2,18 @@ import { cookies } from "next/headers";
 import { prisma } from "@/lib/prisma";
 import { getSessionCookieName } from "@/lib/auth";
 
-export async function getSessionUser() {
+export type SessionUser = Pick<PrismaUser, "id" | "email" | "name" | "createdAt">;
+
+export async function getSessionUser(): Promise<SessionUser | null> {
   const cookieStore = await cookies();
   const token = cookieStore.get(getSessionCookieName())?.value;
 
   if (!token) return null;
 
-  const session = await prisma.session.findUnique({
+  const session = (await prisma.session.findUnique({
     where: { token },
     include: { user: true },
-  });
+  })) as (PrismaSession & { user: SessionUser }) | null;
 
   if (!session) return null;
 

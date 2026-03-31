@@ -1,5 +1,6 @@
 "use client";
 
+import { type ValueType } from "recharts/types/component/DefaultTooltipContent";
 import { Cell, Legend, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
 
 export type AllocationChartEntry = {
@@ -40,8 +41,12 @@ export function AllocationDonutChart({ entries }: AllocationDonutChartProps) {
         <ResponsiveContainer width="100%" height="100%">
           <PieChart>
             <Tooltip
-              formatter={(value: number | string | undefined) =>
-                typeof value === "number" ? `${value.toFixed(1)}%` : value
+              formatter={(value: ValueType | undefined) =>
+                typeof value === "number"
+                  ? `${value.toFixed(1)}%`
+                  : Array.isArray(value)
+                    ? value.join(", ")
+                    : value
               }
               contentStyle={{
                 background: "#09090b",

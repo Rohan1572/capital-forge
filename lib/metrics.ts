@@ -1,10 +1,10 @@
-export function mean(values: number[]): number {
+export function mean(values: readonly number[]): number {
   if (values.length === 0) return 0;
   const total = values.reduce((sum, value) => sum + value, 0);
   return total / values.length;
 }
 
-export function standardDeviation(values: number[]): number {
+export function standardDeviation(values: readonly number[]): number {
   if (values.length === 0) return 0;
   const avg = mean(values);
   const variance = values.reduce((sum, value) => sum + (value - avg) ** 2, 0) / values.length;
@@ -22,7 +22,7 @@ export type SimulationMetrics = {
   probabilityOfLossOver30: number;
 };
 
-export function percentile(values: number[], p: number): number {
+export function percentile(values: readonly number[], p: number): number {
   if (values.length === 0) return 0;
 
   const clamped = Math.min(Math.max(p, 0), 1);
@@ -37,14 +37,14 @@ export function percentile(values: number[], p: number): number {
   return sorted[lower] * (1 - weight) + sorted[upper] * weight;
 }
 
-export function sharpeRatio(values: number[], riskFreeRate = 0): number {
+export function sharpeRatio(values: readonly number[], riskFreeRate = 0): number {
   if (values.length === 0) return 0;
   const volatility = standardDeviation(values);
   if (volatility <= Number.EPSILON) return 0;
   return (mean(values) - riskFreeRate) / volatility;
 }
 
-export function maxDrawdown(periodReturns: number[]): number {
+export function maxDrawdown(periodReturns: readonly number[]): number {
   if (periodReturns.length === 0) return 0;
 
   let wealth = 1;
@@ -62,11 +62,11 @@ export function maxDrawdown(periodReturns: number[]): number {
   return maxObservedDrawdown;
 }
 
-export function valueAtRisk(values: number[], percentileLevel = 0.05): number {
+export function valueAtRisk(values: readonly number[], percentileLevel = 0.05): number {
   return percentile(values, percentileLevel);
 }
 
-export function conditionalValueAtRisk(values: number[], percentileLevel = 0.05): number {
+export function conditionalValueAtRisk(values: readonly number[], percentileLevel = 0.05): number {
   if (values.length === 0) return 0;
   const threshold = percentile(values, percentileLevel);
   const tailValues = values.filter((value) => value <= threshold);
@@ -74,14 +74,14 @@ export function conditionalValueAtRisk(values: number[], percentileLevel = 0.05)
   return mean(tailValues);
 }
 
-export function probabilityOfLossOverThreshold(values: number[], threshold = 0.3): number {
+export function probabilityOfLossOverThreshold(values: readonly number[], threshold = 0.3): number {
   if (values.length === 0) return 0;
   const losers = values.filter((value) => value < -Math.abs(threshold)).length;
   return losers / values.length;
 }
 
 export function computeSimulationMetrics(
-  simulationResults: number[],
+  simulationResults: readonly number[],
   riskFreeRate = 0,
 ): SimulationMetrics {
   return {

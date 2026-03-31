@@ -190,5 +190,3 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Unable to load leaderboard." }, { status: 500 });
   }
 }
-
-
