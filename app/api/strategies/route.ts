@@ -1,10 +1,11 @@
 import { DbNull, type InputJsonValue } from "@prisma/client/runtime/client";
 import { NextResponse } from "next/server";
+import { RISK_FREE_RATE } from "@/lib/env";
+import { validateAllocation } from "@/lib/allocationValidation";
 import {
   SIMULATION_ASSUMPTIONS_VERSION,
   buildSimulationAssumptionsSnapshot,
 } from "@/lib/simulationAudit";
-import { RISK_FREE_RATE } from "@/lib/env";
 import { computeSimulationMetrics } from "@/lib/metrics";
 import { prisma } from "@/lib/prisma";
 import { getSessionUser } from "@/lib/session";
@@ -31,6 +32,14 @@ export async function POST(request: Request) {
     };
     if (!body.allocation || !body.metrics) {
       return NextResponse.json({ error: "allocation and metrics are required" }, { status: 400 });
+    }
+
+    const allocationValidation = validateAllocation(body.allocation);
+    if (!allocationValidation.ok) {
+      return NextResponse.json(
+        { error: `Invalid allocation: ${allocationValidation.error}` },
+        { status: 400 },
+      );
     }
 
     const seed =
@@ -62,7 +71,7 @@ export async function POST(request: Request) {
 
     const strategyData = {
       userId: user.id,
-      allocation: body.allocation as InputJsonValue,
+      allocation: allocationValidation.allocation as InputJsonValue,
       metrics: metrics as InputJsonValue,
       assumptionsVersion,
       assumptions: assumptions as InputJsonValue,
@@ -86,7 +95,7 @@ export async function POST(request: Request) {
         action: "strategy.create",
         metadata: {
           strategyId: strategy.id,
-          allocation: body.allocation,
+          allocation: allocationValidation.allocation,
           metrics,
           assumptionsVersion,
           seed,

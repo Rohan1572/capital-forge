@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { recordAiResponseLog } from "@/lib/aiResponseLog";
 import { buildNeutralDebateResponse, checkAiAdviceLanguage } from "@/lib/aiSafety";
+import { validateAllocation } from "@/lib/allocationValidation";
 import type { Allocation } from "@/lib/monteCarlo";
 import type { SimulationMetrics } from "@/lib/metrics";
 import { TTLCache, buildRiskCacheKey } from "@/lib/cache";
@@ -75,7 +76,16 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "allocation and metrics are required" }, { status: 400 });
     }
 
-    const cacheKey = buildRiskCacheKey(body.allocation, body.metrics);
+    const allocationValidation = validateAllocation(body.allocation);
+    if (!allocationValidation.ok) {
+      return NextResponse.json(
+        { error: `Invalid allocation: ${allocationValidation.error}` },
+        { status: 400 },
+      );
+    }
+
+    const allocation = allocationValidation.allocation;
+    const cacheKey = buildRiskCacheKey(allocation, body.metrics);
     const cached = debateCache.get(cacheKey);
     if (cached) {
       await recordAiResponseLog({
@@ -103,7 +113,7 @@ export async function POST(request: Request) {
     const startTime = Date.now();
 
     const result = await runDebateSequence({
-      allocation: body.allocation,
+      allocation,
       metrics: body.metrics,
       invokeAgent: async ({ role, prompt }) => {
         const callStart = Date.now();

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { buildRiskExplainerPrompt, buildRiskPromptInput } from "@/lib/aiPrompts";
 import { recordAiResponseLog } from "@/lib/aiResponseLog";
 import { buildNeutralAiWarningMarkdown, checkAiAdviceLanguage } from "@/lib/aiSafety";
+import { validateAllocation } from "@/lib/allocationValidation";
 import type { Allocation } from "@/lib/monteCarlo";
 import type { SimulationMetrics } from "@/lib/metrics";
 import { TTLCache, buildRiskCacheKey } from "@/lib/cache";
@@ -140,7 +141,16 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "allocation and metrics are required" }, { status: 400 });
     }
 
-    const cacheKey = buildRiskCacheKey(body.allocation, body.metrics);
+    const allocationValidation = validateAllocation(body.allocation);
+    if (!allocationValidation.ok) {
+      return NextResponse.json(
+        { error: `Invalid allocation: ${allocationValidation.error}` },
+        { status: 400 },
+      );
+    }
+
+    const allocation = allocationValidation.allocation;
+    const cacheKey = buildRiskCacheKey(allocation, body.metrics);
     const cached = riskCache.get(cacheKey);
     if (cached) {
       await recordAiResponseLog({
@@ -156,7 +166,7 @@ export async function POST(request: Request) {
       });
     }
 
-    const promptInput = buildRiskPromptInput(body.allocation, body.metrics);
+    const promptInput = buildRiskPromptInput(allocation, body.metrics);
     const apiKey = process.env.OPENAI_API_KEY;
     if (!apiKey) {
       return NextResponse.json({ error: "OPENAI_API_KEY is not configured." }, { status: 500 });
