@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { getSessionUser } from "@/lib/session";
 import { LogoutButton } from "@/components/LogoutButton";
+import { RecentSimulationRunsWidget } from "@/components/RecentSimulationRunsWidget";
 
 export default async function DashboardPage() {
   const user = await getSessionUser();
@@ -27,6 +28,8 @@ export default async function DashboardPage() {
           View strategy history
         </Link>
       </div>
+
+      <RecentSimulationRunsWidget take={5} />
     </>
   );
 }

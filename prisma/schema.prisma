@@ -12,6 +12,8 @@ datasource db {
 
 model SimulationRun {
   id                   String   @id @default(cuid())
+  userId               String?
+  strategyId           String?
   name                 String
   status               String   @default("draft")
   assumptionsVersion   String?
@@ -22,6 +24,11 @@ model SimulationRun {
   results              Json?
   createdAt            DateTime @default(now())
   updatedAt            DateTime @updatedAt
+  user                 User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  strategy             Strategy? @relation(fields: [strategyId], references: [id], onDelete: SetNull)
+
+  @@index([userId, createdAt])
+  @@index([strategyId])
 }
 
 model User {
@@ -32,6 +39,7 @@ model User {
   createdAt    DateTime  @default(now())
   sessions     Session[]
   strategies   Strategy[]
+  simulationRuns SimulationRun[]
 }
 
 model Session {
@@ -61,6 +69,7 @@ model Strategy {
   simulationShock      Json?
   createdAt            DateTime @default(now())
   user                 User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  simulationRuns       SimulationRun[]
 
   @@index([userId])
 }

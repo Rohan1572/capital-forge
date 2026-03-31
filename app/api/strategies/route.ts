@@ -7,6 +7,7 @@ import {
   buildSimulationAssumptionsSnapshot,
 } from "@/lib/simulationAudit";
 import { computeSimulationMetrics } from "@/lib/metrics";
+import { createSimulationRun } from "@/lib/simulationRun";
 import { prisma } from "@/lib/prisma";
 import { getSessionUser } from "@/lib/session";
 
@@ -88,6 +89,23 @@ export async function POST(request: Request) {
     const strategy = await prisma.strategy.create({
       data: strategyData,
     });
+
+    try {
+      await createSimulationRun({
+        userId: user.id,
+        strategyId: strategy.id,
+        name: `${typeof body.simulationMode === "string" ? body.simulationMode : "baseline"} strategy run`,
+        status: "completed",
+        assumptionsVersion,
+        assumptions,
+        seed,
+        shockId,
+        shockModifiers: body.shockModifiers ?? null,
+        results: body.simulationResults ?? null,
+      });
+    } catch (runError) {
+      console.error("Failed to persist simulation run", runError);
+    }
 
     await prisma.auditLog.create({
       data: {

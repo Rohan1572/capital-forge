@@ -57,6 +57,8 @@ type PrismaAiResponseLog = PrismaModelRecord & {
 };
 
 type PrismaSimulationRun = PrismaModelRecord & {
+  userId: string | null;
+  strategyId: string | null;
   name: string;
   status: string;
   assumptionsVersion: string | null;
