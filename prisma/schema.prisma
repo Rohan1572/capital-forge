@@ -111,3 +111,10 @@ model AuditLog {
   @@index([userId])
   @@index([action])
 }
+model LeaderboardSeason {
+  id          String   @id @default(cuid())
+  scope       String   @unique
+  activeMonth String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}

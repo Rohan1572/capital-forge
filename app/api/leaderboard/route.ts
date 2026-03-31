@@ -1,5 +1,10 @@
-import { NextResponse } from "next/server";
+﻿import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import {
+  buildLeaderboardMonthRange,
+  getLeaderboardSeason,
+  getCurrentUtcMonthLabel,
+} from "@/lib/leaderboardSeason";
 import { getActiveShock } from "@/lib/shocks";
 
 type StrategyMetrics = {
@@ -38,6 +43,11 @@ type ActiveShockSummary = {
   title: string;
 };
 
+type LeaderboardSeasonSummary = {
+  activeMonth: string;
+  currentMonth: string;
+};
+
 function toNumber(value: unknown, fallback: number): number {
   return typeof value === "number" && Number.isFinite(value) ? value : fallback;
 }
@@ -71,27 +81,6 @@ function parsePositiveInt(value: string | null, fallback: number) {
   return parsed;
 }
 
-function buildMonthRange(monthParam: string | null): { start: Date; end: Date; label: string } {
-  if (monthParam) {
-    const match = /^(\d{4})-(\d{2})$/.exec(monthParam);
-    if (match) {
-      const year = Number.parseInt(match[1], 10);
-      const month = Number.parseInt(match[2], 10);
-      if (Number.isFinite(year) && month >= 1 && month <= 12) {
-        const start = new Date(Date.UTC(year, month - 1, 1));
-        const end = new Date(Date.UTC(year, month, 1));
-        return { start, end, label: monthParam };
-      }
-    }
-  }
-
-  const now = new Date();
-  const start = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
-  const end = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1));
-  const label = `${start.getUTCFullYear()}-${String(start.getUTCMonth() + 1).padStart(2, "0")}`;
-  return { start, end, label };
-}
-
 function normalizeMetrics(metrics: unknown): StrategyMetrics {
   if (!metrics || typeof metrics !== "object") return {};
   const record = metrics as Record<string, unknown>;
@@ -117,9 +106,13 @@ export async function GET(request: Request) {
     const pageSize = Math.min(parsePositiveInt(url.searchParams.get("pageSize"), 25), 100);
     const skip = (page - 1) * pageSize;
     const monthParam = url.searchParams.get("month");
-    const monthRange = buildMonthRange(monthParam);
+    const [season, activeShock] = await Promise.all([
+      getLeaderboardSeason(),
+      getActiveShock().catch(() => null),
+    ]);
+    const monthRange = buildLeaderboardMonthRange(monthParam, season.activeMonth);
 
-    const [total, strategies, activeShock] = await Promise.all([
+    const [total, strategies] = await Promise.all([
       prisma.strategy.count({
         where: {
           createdAt: {
@@ -139,7 +132,6 @@ export async function GET(request: Request) {
         skip,
         take: pageSize,
       }),
-      getActiveShock().catch(() => null),
     ]);
 
     const typedStrategies = strategies as StrategyRow[];
@@ -181,6 +173,7 @@ export async function GET(request: Request) {
           pageSize,
           total,
           activeShockId: activeShock?.id ?? null,
+          activeMonth: season.activeMonth,
         },
       },
     });
@@ -192,9 +185,15 @@ export async function GET(request: Request) {
         }
       : null;
 
+    const seasonSummary: LeaderboardSeasonSummary = {
+      activeMonth: season.activeMonth,
+      currentMonth: getCurrentUtcMonthLabel(),
+    };
+
     return NextResponse.json({
       data: ranked,
       month: monthRange.label,
+      season: seasonSummary,
       activeShock: activeShockSummary,
       pagination: {
         page,

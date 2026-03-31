@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { SkeletonBlock, SkeletonStack } from "@/components/LoadingSkeleton";
@@ -33,6 +33,11 @@ type Pagination = {
 type ActiveShockSummary = {
   id: string;
   title: string;
+};
+
+type LeaderboardSeasonSummary = {
+  activeMonth: string;
+  currentMonth: string;
 };
 
 function formatPercent(value?: number) {
@@ -135,21 +140,20 @@ export default function LeaderboardPage() {
     totalPages: 1,
   });
   const [activeShock, setActiveShock] = useState<ActiveShockSummary | null>(null);
-  const [month, setMonth] = useState(() => {
+  const [season, setSeason] = useState<LeaderboardSeasonSummary | null>(null);
+  const [month, setMonth] = useState<string | null>(() => {
     const initial = searchParams.get("month");
-    return initial && isMonthLabel(initial) ? initial : getCurrentMonthLabel();
+    return initial && isMonthLabel(initial) ? initial : null;
   });
 
   useEffect(() => {
     const urlMonth = searchParams.get("month");
-    if (urlMonth && isMonthLabel(urlMonth) && urlMonth !== month) {
-      setMonth(urlMonth);
-      setPagination((current) => ({
-        ...current,
-        page: 1,
-      }));
-    }
-  }, [month, searchParams]);
+    const normalizedMonth = urlMonth && isMonthLabel(urlMonth) ? urlMonth : null;
+    setMonth((current) => (current === normalizedMonth ? current : normalizedMonth));
+  }, [searchParams]);
+
+  const effectiveMonth = month ?? season?.activeMonth ?? getCurrentMonthLabel();
+  const monthLabel = toMonthHeaderLabel(effectiveMonth);
 
   useEffect(() => {
     async function load() {
@@ -158,8 +162,9 @@ export default function LeaderboardPage() {
       setActiveShock(null);
 
       try {
+        const queryMonth = month ? `&month=${month}` : "";
         const response = await fetch(
-          `/api/leaderboard?page=${pagination.page}&pageSize=${pagination.pageSize}&month=${month}`,
+          `/api/leaderboard?page=${pagination.page}&pageSize=${pagination.pageSize}${queryMonth}`,
         );
         if (!response.ok) {
           setError("Unable to load leaderboard.");
@@ -171,8 +176,11 @@ export default function LeaderboardPage() {
           data: LeaderboardEntry[];
           pagination: Pagination;
           activeShock?: ActiveShockSummary | null;
+          season?: LeaderboardSeasonSummary | null;
+          month?: string;
         };
         setEntries(payload.data ?? []);
+        setSeason(payload.season ?? null);
         setActiveShock(payload.activeShock ?? null);
         setExpandedId(null);
         if (payload.pagination) {
@@ -192,8 +200,6 @@ export default function LeaderboardPage() {
     load();
   }, [month, pagination.page, pagination.pageSize]);
 
-  const activeMonthLabel = useMemo(() => toMonthHeaderLabel(month), [month]);
-
   function setPage(nextPage: number) {
     setPagination((current) => ({
       ...current,
@@ -202,7 +208,7 @@ export default function LeaderboardPage() {
   }
 
   function updateMonth(nextMonth: string) {
-    const safeMonth = isMonthLabel(nextMonth) ? nextMonth : getCurrentMonthLabel();
+    const safeMonth = isMonthLabel(nextMonth) ? nextMonth : null;
     setMonth(safeMonth);
     setExpandedId(null);
     setPagination((current) => ({
@@ -211,16 +217,20 @@ export default function LeaderboardPage() {
     }));
 
     const params = new URLSearchParams(searchParams.toString());
-    params.set("month", safeMonth);
-    router.replace(`?${params.toString()}`, { scroll: false });
+    if (safeMonth) {
+      params.set("month", safeMonth);
+    } else {
+      params.delete("month");
+    }
+    router.replace(params.toString() ? `?${params.toString()}` : "/leaderboard", { scroll: false });
   }
 
   function handlePreviousMonth() {
-    updateMonth(shiftMonth(month, -1));
+    updateMonth(shiftMonth(effectiveMonth, -1));
   }
 
   function handleNextMonth() {
-    updateMonth(shiftMonth(month, 1));
+    updateMonth(shiftMonth(effectiveMonth, 1));
   }
 
   function toggleExpanded(id: string) {
@@ -240,9 +250,20 @@ export default function LeaderboardPage() {
 
           <div className="space-y-3 rounded-xl border border-zinc-800 bg-zinc-900/70 px-4 py-3 text-right">
             <div>
-              <p className="text-xs uppercase tracking-wide text-zinc-500">Active Month</p>
-              <p className="mt-1 text-lg font-semibold text-zinc-100">{activeMonthLabel}</p>
-              <p className="mt-1 text-xs text-zinc-400">Query: {month}</p>
+              <p className="text-xs uppercase tracking-wide text-zinc-500">Active Season</p>
+              <p className="mt-1 text-lg font-semibold text-zinc-100">
+                {season?.activeMonth ? toMonthHeaderLabel(season.activeMonth) : monthLabel}
+              </p>
+              <p className="mt-1 text-xs text-zinc-400">
+                Current cycle{season?.activeMonth ? `: ${season.activeMonth}` : ""}
+              </p>
+            </div>
+            <div className="rounded-lg border border-zinc-700 bg-zinc-950/70 px-3 py-2 text-left">
+              <p className="text-[11px] uppercase tracking-wide text-zinc-500">Viewing Month</p>
+              <p className="mt-1 text-sm font-medium text-amber-100">{monthLabel}</p>
+              <p className="mt-1 text-xs text-zinc-400">
+                {month ? "Filtered leaderboard view" : "Using the active season"}
+              </p>
             </div>
             <div className="rounded-lg border border-zinc-700 bg-zinc-950/70 px-3 py-2 text-left">
               <p className="text-[11px] uppercase tracking-wide text-zinc-500">Shock Context</p>
@@ -263,7 +284,7 @@ export default function LeaderboardPage() {
             <span className="text-zinc-500">Month</span>
             <input
               type="month"
-              value={month}
+              value={month ?? effectiveMonth}
               onChange={(event) => updateMonth(event.target.value)}
               className="rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-zinc-100 outline-none transition focus:border-amber-400/60"
             />
