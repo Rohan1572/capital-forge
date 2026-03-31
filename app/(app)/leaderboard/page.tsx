@@ -410,7 +410,8 @@ export default function LeaderboardPage() {
           </div>
           <div className="flex flex-wrap items-center justify-between gap-3 border-t border-zinc-800 px-4 py-3 text-xs text-zinc-400">
             <p>
-              Page {pagination.page} of {pagination.totalPages} · {pagination.total} total
+              Page {pagination.page} of {pagination.totalPages}
+              {"\u00B7"} {pagination.total} total
             </p>
             <div className="flex items-center gap-2">
               <button
