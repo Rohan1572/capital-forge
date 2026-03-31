@@ -1,16 +1,16 @@
-import {
-  assetReturnAssumptions,
-  simulationRegimes,
-  type AssetReturnAssumptions,
-  type SimulationRegimes,
-} from "@/lib/assetAssumptions";
+import { type AssetReturnAssumptions } from "@/lib/assetAssumptions";
 import type { ShockParameters } from "@/lib/shockEngine";
+import {
+  buildSimulationConfigSnapshot,
+  SIMULATION_CONFIG_VERSION,
+  type SimulationConfigSnapshot,
+} from "@/lib/simulationConfig";
 
-export const SIMULATION_ASSUMPTIONS_VERSION = "2026-03-31";
+export const SIMULATION_ASSUMPTIONS_VERSION = SIMULATION_CONFIG_VERSION;
 
 export type SimulationAssumptionsSnapshot = {
   assetReturnAssumptions: AssetReturnAssumptions;
-  simulationRegimes: SimulationRegimes;
+  simulationRegimes: SimulationConfigSnapshot["simulationRegimes"];
 };
 
 export type SimulationAuditSnapshot = {
@@ -30,9 +30,10 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 export function buildSimulationAssumptionsSnapshot(): SimulationAssumptionsSnapshot {
+  const snapshot = buildSimulationConfigSnapshot();
   return {
-    assetReturnAssumptions,
-    simulationRegimes,
+    assetReturnAssumptions: snapshot.assetReturnAssumptions,
+    simulationRegimes: snapshot.simulationRegimes,
   };
 }
 
@@ -63,7 +64,9 @@ export function parseSimulationAssumptionsSnapshot(
     return null;
   }
 
-  const assetKeys = Object.keys(assetReturnAssumptions) as (keyof AssetReturnAssumptions)[];
+  const assetKeys = Object.keys(
+    buildSimulationConfigSnapshot().assetReturnAssumptions,
+  ) as (keyof AssetReturnAssumptions)[];
   for (const asset of assetKeys) {
     const candidate = assumptions.assetReturnAssumptions[asset];
     if (

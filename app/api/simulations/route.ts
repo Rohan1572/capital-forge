@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getSessionUser } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { createSimulationRun } from "@/lib/simulationRun";
+import { buildSimulationConfigMetadata } from "@/lib/simulationConfig";
 
 function parseTake(url: string) {
   try {
@@ -28,7 +29,12 @@ export async function GET(request: Request) {
       take,
     });
 
-    return NextResponse.json({ data: runs });
+    return NextResponse.json({
+      data: runs.map((run) => ({
+        ...run,
+        simulationConfig: buildSimulationConfigMetadata(run.assumptionsVersion, run.assumptions),
+      })),
+    });
   } catch (error) {
     console.error("Failed to load simulations", error);
     return NextResponse.json({ error: "Unable to load simulations." }, { status: 500 });
@@ -77,7 +83,15 @@ export async function POST(request: Request) {
       results: body.results ?? null,
     });
 
-    return NextResponse.json({ data: run }, { status: 201 });
+    return NextResponse.json(
+      {
+        data: {
+          ...run,
+          simulationConfig: buildSimulationConfigMetadata(run.assumptionsVersion, run.assumptions),
+        },
+      },
+      { status: 201 },
+    );
   } catch (error) {
     console.error("Failed to create simulation", error);
     return NextResponse.json({ error: "Unable to create simulation." }, { status: 500 });

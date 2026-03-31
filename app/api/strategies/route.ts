@@ -7,6 +7,7 @@ import {
   buildSimulationAssumptionsSnapshot,
 } from "@/lib/simulationAudit";
 import { computeSimulationMetrics } from "@/lib/metrics";
+import { buildSimulationConfigMetadata } from "@/lib/simulationConfig";
 import { createSimulationRun } from "@/lib/simulationRun";
 import { prisma } from "@/lib/prisma";
 import { getSessionUser } from "@/lib/session";
@@ -124,7 +125,15 @@ export async function POST(request: Request) {
       },
     });
 
-    return NextResponse.json({ data: strategy }, { status: 201 });
+    return NextResponse.json(
+      {
+        data: {
+          ...strategy,
+          simulationConfig: buildSimulationConfigMetadata(assumptionsVersion, assumptions),
+        },
+      },
+      { status: 201 },
+    );
   } catch (error) {
     console.error("Failed to create strategy", error);
     return NextResponse.json({ error: "Unable to save strategy." }, { status: 500 });
@@ -144,7 +153,15 @@ export async function GET() {
       take: 20,
     });
 
-    return NextResponse.json({ data: strategies });
+    return NextResponse.json({
+      data: strategies.map((strategy) => ({
+        ...strategy,
+        simulationConfig: buildSimulationConfigMetadata(
+          strategy.assumptionsVersion,
+          strategy.assumptions,
+        ),
+      })),
+    });
   } catch (error) {
     console.error("Failed to load strategies", error);
     return NextResponse.json({ error: "Unable to load strategies." }, { status: 500 });

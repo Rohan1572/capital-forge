@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { buildSimulationConfigMetadata } from "@/lib/simulationConfig";
 import { getSessionUser } from "@/lib/session";
 
 type RouteContext = {
@@ -30,7 +31,15 @@ export async function GET(_request: Request, context: RouteContext) {
       return NextResponse.json({ error: "Strategy not found" }, { status: 404 });
     }
 
-    return NextResponse.json({ data: strategy });
+    return NextResponse.json({
+      data: {
+        ...strategy,
+        simulationConfig: buildSimulationConfigMetadata(
+          strategy.assumptionsVersion,
+          strategy.assumptions,
+        ),
+      },
+    });
   } catch (error) {
     console.error("Failed to load strategy", error);
     return NextResponse.json({ error: "Unable to load strategy." }, { status: 500 });
