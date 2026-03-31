@@ -1,7 +1,8 @@
-﻿"use client";
+"use client";
 
-import { Fragment, useEffect, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
 import { SkeletonBlock, SkeletonStack } from "@/components/LoadingSkeleton";
 import { MetricLabel } from "@/components/MetricLabel";
 
@@ -83,7 +84,42 @@ function buildRiskWarnings(entry: LeaderboardEntry) {
   return warnings.slice(0, 4);
 }
 
+function toMonthLabel(date: Date) {
+  return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, "0")}`;
+}
+
+function getCurrentMonthLabel() {
+  return toMonthLabel(new Date());
+}
+
+function isMonthLabel(value: string): value is `${number}-${number}` {
+  return /^\d{4}-\d{2}$/.test(value);
+}
+
+function shiftMonth(monthLabel: string, offset: number) {
+  if (!isMonthLabel(monthLabel)) return getCurrentMonthLabel();
+
+  const [yearPart, monthPart] = monthLabel.split("-");
+  const year = Number(yearPart);
+  const month = Number(monthPart);
+
+  if (!Number.isFinite(year) || !Number.isFinite(month)) {
+    return getCurrentMonthLabel();
+  }
+
+  const shifted = new Date(Date.UTC(year, month - 1 + offset, 1));
+  return toMonthLabel(shifted);
+}
+
+function toMonthHeaderLabel(monthLabel: string) {
+  const parsed = new Date(`${monthLabel}-01T00:00:00Z`);
+  if (Number.isNaN(parsed.getTime())) return monthLabel;
+  return parsed.toLocaleString("en-US", { month: "long", year: "numeric", timeZone: "UTC" });
+}
+
 export default function LeaderboardPage() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const [entries, setEntries] = useState<LeaderboardEntry[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -94,6 +130,21 @@ export default function LeaderboardPage() {
     total: 0,
     totalPages: 1,
   });
+  const [month, setMonth] = useState(() => {
+    const initial = searchParams.get("month");
+    return initial && isMonthLabel(initial) ? initial : getCurrentMonthLabel();
+  });
+
+  useEffect(() => {
+    const urlMonth = searchParams.get("month");
+    if (urlMonth && isMonthLabel(urlMonth) && urlMonth !== month) {
+      setMonth(urlMonth);
+      setPagination((current) => ({
+        ...current,
+        page: 1,
+      }));
+    }
+  }, [month, searchParams]);
 
   useEffect(() => {
     async function load() {
@@ -102,7 +153,7 @@ export default function LeaderboardPage() {
 
       try {
         const response = await fetch(
-          `/api/leaderboard?page=${pagination.page}&pageSize=${pagination.pageSize}`,
+          `/api/leaderboard?page=${pagination.page}&pageSize=${pagination.pageSize}&month=${month}`,
         );
         if (!response.ok) {
           setError("Unable to load leaderboard.");
@@ -131,7 +182,9 @@ export default function LeaderboardPage() {
     }
 
     load();
-  }, [pagination.page, pagination.pageSize]);
+  }, [month, pagination.page, pagination.pageSize]);
+
+  const activeMonthLabel = useMemo(() => toMonthHeaderLabel(month), [month]);
 
   function setPage(nextPage: number) {
     setPagination((current) => ({
@@ -140,17 +193,77 @@ export default function LeaderboardPage() {
     }));
   }
 
+  function updateMonth(nextMonth: string) {
+    const safeMonth = isMonthLabel(nextMonth) ? nextMonth : getCurrentMonthLabel();
+    setMonth(safeMonth);
+    setExpandedId(null);
+    setPagination((current) => ({
+      ...current,
+      page: 1,
+    }));
+
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("month", safeMonth);
+    router.replace(`?${params.toString()}`, { scroll: false });
+  }
+
+  function handlePreviousMonth() {
+    updateMonth(shiftMonth(month, -1));
+  }
+
+  function handleNextMonth() {
+    updateMonth(shiftMonth(month, 1));
+  }
+
   function toggleExpanded(id: string) {
     setExpandedId((current) => (current === id ? null : id));
   }
 
   return (
     <>
-      <header>
-        <h1 className="text-3xl font-semibold">Leaderboard</h1>
-        <p className="text-zinc-400">
-          Competitive rankings based on Sharpe ratio and downside risk.
-        </p>
+      <header className="space-y-4">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <h1 className="text-3xl font-semibold">Leaderboard</h1>
+            <p className="text-zinc-400">
+              Competitive rankings based on Sharpe ratio and downside risk.
+            </p>
+          </div>
+
+          <div className="rounded-xl border border-zinc-800 bg-zinc-900/70 px-4 py-3 text-right">
+            <p className="text-xs uppercase tracking-wide text-zinc-500">Active Month</p>
+            <p className="mt-1 text-lg font-semibold text-zinc-100">{activeMonthLabel}</p>
+            <p className="mt-1 text-xs text-zinc-400">Query: {month}</p>
+          </div>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-3 rounded-xl border border-zinc-800 bg-zinc-900/70 px-4 py-3">
+          <label className="flex items-center gap-3 text-sm text-zinc-300">
+            <span className="text-zinc-500">Month</span>
+            <input
+              type="month"
+              value={month}
+              onChange={(event) => updateMonth(event.target.value)}
+              className="rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-zinc-100 outline-none transition focus:border-amber-400/60"
+            />
+          </label>
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={handlePreviousMonth}
+              className="rounded-lg border border-zinc-700 bg-zinc-950 px-4 py-2 text-sm font-medium text-zinc-100 transition hover:border-zinc-500"
+            >
+              Previous month
+            </button>
+            <button
+              type="button"
+              onClick={handleNextMonth}
+              className="rounded-lg border border-zinc-700 bg-zinc-950 px-4 py-2 text-sm font-medium text-zinc-100 transition hover:border-zinc-500"
+            >
+              Next month
+            </button>
+          </div>
+        </div>
       </header>
 
       {isLoading ? (
