@@ -58,40 +58,26 @@ CapitalForge is designed as a decision lab for portfolio construction, risk stre
 ---
 
 # Remaining Work
+The original roadmap has mostly been implemented. These are the remaining gaps I found in the current repo after checking the live code against the markdown.
 
-Completed items have been removed so this section only tracks open work.
+## Production-Ready Gaps
+- Fix visible UI polish issues before launch, including the broken separator in the recent runs widget and the leaderboard footer glyph.
+- Add CSRF or origin validation for cookie-authenticated state-changing routes, and review sensitive API surfaces so their access model matches the intended private versus public product model.
+- Add a browser-level smoke suite for auth -> simulate -> save -> leaderboard so the main launch path is exercised outside unit tests.
+- Add deployment runbooks for backup/restore, schema migrations, and incident response so the product can be operated safely after launch.
 
-## Core Simulation and Metrics
-- Apply shock correlation shifts. The shock engine supports correlation modifiers, but the Monte Carlo flow does not apply them yet.
-- Persist simulation assumptions, seed, and shock id per run for auditability.
-- Wire risk-free rate configuration into metrics and callers. `computeSimulationMetrics` accepts it, but the app still passes the default.
-
-## AI Risk and Debate
-- Persist AI response metadata (model, tokens, latency) to DB or audit logs.
-- Add AI safety guardrails to prevent investment-advice language and add a visible disclaimer.
-
-## Shock Events
-- Surface active shock beyond the simulate page. Strategy detail already shows shock context, but leaderboard context is still missing.
-- Weekly rotation or reset logic for shocks (cron/worker + admin trigger).
-
-## Strategies and Leaderboard
-- Leaderboard month selector UI + active month display in the page header.
-- Strategy detail assumptions snapshot is still missing.
-- Enforce allocation bounds server-side (min/max rules + total=100 validation).
-- Protect leaderboard routes and make strategy detail redirect unauthenticated users. Dashboard and strategies layouts already redirect, but leaderboard remains public and strategy detail is soft-gated.
-- Decide on `SimulationRun` model usage (currently unused in UI).
-
-## Data, Assumptions, and Auditability
-- Versioned assumptions config and per-run logging.
+## Product Surface Gaps
+- Surface the active shock context on the leaderboard page and, if useful, in the leaderboard API response so rankings are read in the same scenario context as simulate and strategy detail.
+- Add an explicit season or reset model for the monthly leaderboard if monthly competition is meant to behave like a true game loop instead of a filterable archive.
 
 ## Testing and QA
-- Snapshot tests for AI response formatting.
-- End-to-end flow tests: allocate -> simulate -> save -> rank.
-- Shock validation tests (metric deltas after shock).
+- Add an end-to-end flow test for allocate -> simulate -> save -> rank.
+- Add regression coverage for leaderboard month navigation and any shock-context UI added to that surface.
+- Keep snapshot coverage around AI response formatting and safety wrappers so prompt changes do not silently alter the UI contract.
 
 ## Ops and Compliance
-- Monitoring for simulation latency and AI costs.
-- PII retention policy and documentation.
+- Add retention or deletion automation for sessions, AI response logs, and older simulation records so the privacy policy is enforced operationally.
+- Add alerting or scheduled reporting on simulation latency and AI cost metrics, not just the existing monitoring widget.
 
 ---
 
@@ -99,67 +85,47 @@ Completed items have been removed so this section only tracks open work.
 
 Use these prompts when delegating the remaining work.
 
-## Apply Shock Correlation Shifts
+## Production Polish Cleanup
 Prompt:
-Update `lib/monteCarlo.ts` to apply shock-adjusted correlation matrices when `ShockParameters` are provided. Use `applyShockToCorrelation` from `lib/shockEngine.ts`, recompute Cholesky decomposition for the shocked matrix, and ensure the simulation uses the shocked correlation only for the affected run. Add a unit test in `lib/monteCarlo.test.ts` to verify correlations shift in the expected direction.
+Fix the visible UI text encoding issues in `components/RecentSimulationRunsWidget.tsx` and `app/(app)/leaderboard/page.tsx`, then scan for any other launch-blocking rendering artifacts. Keep the changes minimal and consistent with the existing design language.
 
-## Persist Simulation Assumptions + Seed + Shock
+## Add Request Hardening
 Prompt:
-Store simulation assumptions, seed, and shock id in the database for auditability. Update the strategy save flow or create a new `SimulationRun` model to persist `assumptionsVersion`, `assumptions`, `seed`, `shockId`, and `shockModifiers`. Add the fields to the Prisma schema and include them in API responses where needed.
+Add CSRF or origin validation for cookie-authenticated POST, PUT, PATCH, and DELETE routes. Review sensitive API endpoints and make sure the access model matches the intended product model for private versus public data. Keep API error responses JSON-based.
 
-## Risk-Free Rate Configuration
+## Add E2E Smoke Coverage
 Prompt:
-Add `RISK_FREE_RATE` to environment configuration and pass it into `computeSimulationMetrics` in the API and UI. Update `lib/metrics.ts` callers so Sharpe uses the configured value. Add a test to validate Sharpe changes when risk-free rate is non-zero.
+Add a browser-level smoke test that covers login, allocate, simulate, save, and leaderboard visibility. Keep the test focused on the critical launch path and verify the most important UI states rather than implementation details.
 
-## Persist AI Metadata
+## Add Operational Runbooks
 Prompt:
-Store AI response metadata for risk and debate in the database. Add columns or a JSON blob to the strategy record or an `AiResponseLog` table. Update `/api/ai/risk` and `/api/ai/debate` to persist metadata alongside strategy runs.
+Document and, where practical, automate backup/restore validation, schema migration rehearsal, and incident response steps for launch. Align the runbook with `docs/privacy-and-data-handling.md` and the current monitoring route so the team can operate the app safely in production.
 
-## AI Safety Guardrails
+## Surface Active Shock On Leaderboard
 Prompt:
-Add a post-response safety check that flags investment-advice language such as buy, sell, or guaranteed. If detected, replace the content with a neutral warning and show a disclaimer card in the UI. Update prompts to discourage advice-like phrasing and add a short disclaimer banner to AI panels.
+Update `app/(app)/leaderboard/page.tsx` and `app/api/leaderboard/route.ts` to show the currently active shock context alongside monthly rankings. Add a compact shock badge or summary in the header, and include the active shock id/title in the API payload when available so the UI can explain why rankings may move during a shock week.
 
-## Weekly Shock Rotation
+## Add Monthly Season Rollovers
 Prompt:
-Add a scheduled job or worker that calls `/api/ai/shocks` weekly and sets the active shock. Ensure old shocks are deactivated and `weekStart` is set consistently in UTC on Monday. Add a manual admin trigger route for testing.
+Add a season or reset job for the leaderboard so the monthly competition can behave like a true cycle instead of only a query filter. Reuse the existing month-range logic in `app/api/leaderboard/route.ts`, add a scheduled runner or admin action for month rollover, and make sure the active month is displayed consistently in the UI.
 
-## Leaderboard Month Selector UI
+## Add End-to-End QA
 Prompt:
-Update `app/(app)/leaderboard/page.tsx` with a month picker in `YYYY-MM` format. Pass the `month` query param to the API, show the active month in the header, and allow quick navigation to the previous and next months.
+Add an end-to-end test that covers allocate -> simulate -> save -> rank, plus a smaller regression test for leaderboard month navigation and any new shock-context UI. Keep the test focused on user-visible behavior and the API contract, not implementation details.
 
-## Strategy Detail Enhancements
+## Enforce Retention Automation
 Prompt:
-Enhance `app/(app)/strategy/[id]/page.tsx` to include an assumptions snapshot, active shock context, and a compact metrics sidebar. Reuse `SimulationChart` and add a `Back to History` link if needed.
+Add automated retention and deletion workflows for sessions, AI response logs, and older simulation records. Reuse the guidance in `docs/privacy-and-data-handling.md`, make the deletion path explicit for support or admin use, and ensure audit records remain compliant with the intended retention policy.
 
-## Server-Side Allocation Validation
+## Add Monitoring Alerts
 Prompt:
-Add server-side allocation validation in `/api/strategies` and any `/api/ai/*` endpoints that accept allocation data. Enforce totals = 100 and min/max per asset. Return 400 with a clear error if invalid. Add tests for invalid allocations.
-
-## Protect Routes With Redirect
-Prompt:
-Add middleware or server-side checks to redirect unauthenticated users from `/leaderboard` and `/strategy/[id]` to `/login`. Keep API routes returning 401 JSON rather than redirects.
-
-## Decide SimulationRun Model Usage
-Prompt:
-Either wire `SimulationRun` into the simulation flow so each run is stored and linked to a strategy, or remove the model if it remains unused. If you keep it, add API endpoints and a dashboard widget for recent runs.
-
-## Versioned Assumptions and Auditability
-Prompt:
-Centralize asset assumptions in a versioned config file and persist the version plus runtime assumptions for each simulation. Include the configuration metadata in saved strategy records and API responses.
-
-## Testing Coverage
-Prompt:
-Add snapshot tests for AI response formatting, end-to-end tests for allocate -> simulate -> save -> rank, and shock validation tests that verify metrics move after a shock is applied.
-
-## Ops and Compliance
-Prompt:
-Add monitoring for simulation latency and AI costs, then document a PII retention policy and data handling rules.
+Expand the current monitoring surface into actionable reporting or alerts for simulation latency and AI cost spikes. Hook the logic behind `app/api/monitoring/route.ts` into a scheduled check or admin summary, and surface threshold breaches clearly enough for operators to spot regressions quickly.
 
 ---
 
 # Roadmap Update Metadata
 
-Date: March 30, 2026
+Date: April 1, 2026
 
 Codebase checked against the current repo state. This document now tracks only open work and the prompts needed to implement it.
 
