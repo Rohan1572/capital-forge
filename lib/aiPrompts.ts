@@ -28,6 +28,8 @@ export function buildRiskExplainerPrompt(input: RiskPromptInput): string {
   return [
     "You are a portfolio risk analyst.",
     "Use a professional tone suitable for an investment committee memo.",
+    "Do not use buy, sell, hold, guaranteed, should, or must language.",
+    "Frame the output as analysis only, not investment advice.",
     "Identify portfolio weaknesses using the provided metrics and allocation mix.",
     "Suggest specific allocation improvements with practical rationale.",
     "Clearly highlight downside risks, including tail-risk implications from VaR, CVaR, and drawdown.",
@@ -137,6 +139,8 @@ export function buildDebateAgentPrompt(input: DebateAgentPromptInput): string {
     ...profile.priorities.map((item) => `- ${item}`),
     "Debate tactics:",
     ...profile.tactics.map((item) => `- ${item}`),
+    "Avoid buy, sell, hold, guaranteed, should, and must phrasing.",
+    "Present analytical commentary only; do not offer investment advice.",
     "",
     "Respond in concise bullet points under these headings:",
     "Opening Statement, Counterpoints, Recommendation.",

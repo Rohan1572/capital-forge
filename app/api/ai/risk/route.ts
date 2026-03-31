@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { buildRiskExplainerPrompt, buildRiskPromptInput } from "@/lib/aiPrompts";
 import { recordAiResponseLog } from "@/lib/aiResponseLog";
+import { buildNeutralAiWarningMarkdown, checkAiAdviceLanguage } from "@/lib/aiSafety";
 import type { Allocation } from "@/lib/monteCarlo";
 import type { SimulationMetrics } from "@/lib/metrics";
 import { TTLCache, buildRiskCacheKey } from "@/lib/cache";
@@ -16,6 +17,8 @@ type RiskExplainerJson = {
 type RiskAiMeta = {
   model: string;
   latencyMs: number;
+  safetyNotice?: string | null;
+  safetyMatchedTerms?: string[];
   usage?: {
     inputTokens?: number;
     outputTokens?: number;
@@ -220,9 +223,13 @@ export async function POST(request: Request) {
 
     const json = parseRiskExplainerJson(JSON.parse(outputText));
     const markdown = buildRiskMarkdown(json);
+    const safety = checkAiAdviceLanguage(markdown);
+    const responseMarkdown = safety.flagged ? buildNeutralAiWarningMarkdown() : markdown;
     const meta: RiskAiMeta = {
       model: payload.model ?? model,
       latencyMs,
+      safetyNotice: safety.disclaimer,
+      safetyMatchedTerms: safety.matchedTerms.length > 0 ? safety.matchedTerms : undefined,
       usage: {
         inputTokens: payload.usage?.input_tokens,
         outputTokens: payload.usage?.output_tokens,
@@ -230,7 +237,7 @@ export async function POST(request: Request) {
       },
     };
 
-    riskCache.set(cacheKey, { markdown, meta });
+    riskCache.set(cacheKey, { markdown: responseMarkdown, meta });
     await recordAiResponseLog({
       kind: "risk",
       strategyId: body.strategyId,
@@ -240,7 +247,7 @@ export async function POST(request: Request) {
       },
     });
 
-    return NextResponse.json({ data: { markdown, meta, cached: false } });
+    return NextResponse.json({ data: { markdown: responseMarkdown, meta, cached: false } });
   } catch (error) {
     console.error("Failed to generate AI risk explainer", error);
     return NextResponse.json({ error: "Unable to generate AI response." }, { status: 500 });

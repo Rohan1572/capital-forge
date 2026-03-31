@@ -1,6 +1,8 @@
 "use client";
 
 import { useMemo, type ReactNode } from "react";
+import { AiDisclaimerBanner } from "@/components/AiDisclaimerBanner";
+import { AI_DISCLOSURE_TEXT } from "@/lib/aiSafety";
 
 type RiskExplainerPanelProps = {
   markdown: string;
@@ -8,6 +10,8 @@ type RiskExplainerPanelProps = {
     model: string;
     latencyMs: number;
     cached?: boolean;
+    safetyNotice?: string | null;
+    safetyMatchedTerms?: string[];
     usage?: {
       inputTokens?: number;
       outputTokens?: number;
@@ -93,6 +97,7 @@ export function RiskExplainerPanel({ markdown, meta }: RiskExplainerPanelProps) 
         <p className="text-sm text-zinc-400">
           Structured portfolio critique with emphasis on downside scenarios.
         </p>
+        <AiDisclaimerBanner message={AI_DISCLOSURE_TEXT} />
         {meta ? (
           <div className="flex flex-wrap items-center gap-2 text-xs">
             <span className="rounded-full border border-zinc-700 bg-zinc-950 px-2.5 py-1 text-zinc-300">
@@ -114,6 +119,18 @@ export function RiskExplainerPanel({ markdown, meta }: RiskExplainerPanelProps) 
           </div>
         ) : null}
       </header>
+
+      {meta?.safetyNotice ? (
+        <div className="rounded-lg border border-amber-500/40 bg-amber-950/30 p-4 text-sm text-amber-100">
+          <p className="font-semibold text-amber-200">Content filtered</p>
+          <p className="mt-2">{meta.safetyNotice}</p>
+          {meta.safetyMatchedTerms?.length ? (
+            <p className="mt-2 text-xs text-amber-200/80">
+              Flagged terms: {meta.safetyMatchedTerms.join(", ")}
+            </p>
+          ) : null}
+        </div>
+      ) : null}
 
       {warnings.length > 0 ? (
         <div className="grid gap-3 md:grid-cols-3">

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { recordAiResponseLog } from "@/lib/aiResponseLog";
+import { buildNeutralDebateResponse, checkAiAdviceLanguage } from "@/lib/aiSafety";
 import type { Allocation } from "@/lib/monteCarlo";
 import type { SimulationMetrics } from "@/lib/metrics";
 import { TTLCache, buildRiskCacheKey } from "@/lib/cache";
@@ -27,6 +28,8 @@ type DebateAiCallMeta = {
 type DebateAiMeta = {
   model: string;
   latencyMs: number;
+  safetyNotice?: string | null;
+  safetyMatchedTerms?: string[];
   usage?: DebateAiUsage;
   calls: DebateAiCallMeta[];
 };
@@ -174,15 +177,25 @@ export async function POST(request: Request) {
       },
     });
 
-    const sections = result.calls.map((call) => parseDebateSections(call.response));
+    const rawResponses = result.calls.map((call) => call.response).join("\n\n");
+    const safety = checkAiAdviceLanguage(rawResponses);
+    const sanitizedCalls = safety.flagged
+      ? result.calls.map((call) => ({
+          ...call,
+          response: buildNeutralDebateResponse(),
+        }))
+      : result.calls;
+    const sections = sanitizedCalls.map((call) => parseDebateSections(call.response));
     const meta: DebateAiMeta = {
       model,
       latencyMs: Date.now() - startTime,
+      safetyNotice: safety.disclaimer,
+      safetyMatchedTerms: safety.matchedTerms.length > 0 ? safety.matchedTerms : undefined,
       usage: hasUsage ? usageTotals : undefined,
       calls: callMetas,
     };
 
-    debateCache.set(cacheKey, { calls: result.calls, sections, meta });
+    debateCache.set(cacheKey, { calls: sanitizedCalls, sections, meta });
     await recordAiResponseLog({
       kind: "debate",
       strategyId: body.strategyId,
@@ -193,7 +206,7 @@ export async function POST(request: Request) {
     });
 
     return NextResponse.json({
-      data: { calls: result.calls, sections, meta, cached: false },
+      data: { calls: sanitizedCalls, sections, meta, cached: false },
     });
   } catch (error) {
     console.error("Failed to generate AI debate", error);

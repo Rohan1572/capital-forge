@@ -1,4 +1,6 @@
 import { DEBATE_AGENT_PROFILES } from "@/lib/aiPrompts";
+import { AiDisclaimerBanner } from "@/components/AiDisclaimerBanner";
+import { AI_DISCLOSURE_TEXT } from "@/lib/aiSafety";
 import type { DebateAgentCall } from "@/lib/debateEngine";
 import { parseDebateSections } from "@/lib/debateEngine";
 
@@ -8,6 +10,8 @@ type AIDebatePanelProps = {
     model: string;
     latencyMs: number;
     cached?: boolean;
+    safetyNotice?: string | null;
+    safetyMatchedTerms?: string[];
     calls?: Array<{
       role: DebateAgentCall["role"];
       model: string;
@@ -59,6 +63,7 @@ export function AIDebatePanel({ calls, meta }: AIDebatePanelProps) {
             Structured Debate Output
           </span>
         </div>
+        <AiDisclaimerBanner message={AI_DISCLOSURE_TEXT} />
         {meta ? (
           <div className="flex flex-wrap items-center gap-2 text-xs">
             <span className="rounded-full border border-zinc-700 bg-zinc-950 px-2.5 py-1 text-zinc-300">
@@ -75,6 +80,18 @@ export function AIDebatePanel({ calls, meta }: AIDebatePanelProps) {
           </div>
         ) : null}
       </header>
+
+      {meta?.safetyNotice ? (
+        <div className="mt-5 rounded-lg border border-amber-500/40 bg-amber-950/30 p-4 text-sm text-amber-100">
+          <p className="font-semibold text-amber-200">Content filtered</p>
+          <p className="mt-2">{meta.safetyNotice}</p>
+          {meta.safetyMatchedTerms?.length ? (
+            <p className="mt-2 text-xs text-amber-200/80">
+              Flagged terms: {meta.safetyMatchedTerms.join(", ")}
+            </p>
+          ) : null}
+        </div>
+      ) : null}
 
       <div className="mt-5 space-y-4">
         {calls.map((call, index) => {
