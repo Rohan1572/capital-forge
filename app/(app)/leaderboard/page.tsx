@@ -30,6 +30,11 @@ type Pagination = {
   totalPages: number;
 };
 
+type ActiveShockSummary = {
+  id: string;
+  title: string;
+};
+
 function formatPercent(value?: number) {
   if (typeof value !== "number") return "--";
   return `${(value * 100).toFixed(2)}%`;
@@ -129,6 +134,7 @@ export default function LeaderboardPage() {
     total: 0,
     totalPages: 1,
   });
+  const [activeShock, setActiveShock] = useState<ActiveShockSummary | null>(null);
   const [month, setMonth] = useState(() => {
     const initial = searchParams.get("month");
     return initial && isMonthLabel(initial) ? initial : getCurrentMonthLabel();
@@ -149,6 +155,7 @@ export default function LeaderboardPage() {
     async function load() {
       setIsLoading(true);
       setError(null);
+      setActiveShock(null);
 
       try {
         const response = await fetch(
@@ -163,8 +170,10 @@ export default function LeaderboardPage() {
         const payload = (await response.json()) as {
           data: LeaderboardEntry[];
           pagination: Pagination;
+          activeShock?: ActiveShockSummary | null;
         };
         setEntries(payload.data ?? []);
+        setActiveShock(payload.activeShock ?? null);
         setExpandedId(null);
         if (payload.pagination) {
           setPagination((current) => ({
@@ -229,10 +238,23 @@ export default function LeaderboardPage() {
             </p>
           </div>
 
-          <div className="rounded-xl border border-zinc-800 bg-zinc-900/70 px-4 py-3 text-right">
-            <p className="text-xs uppercase tracking-wide text-zinc-500">Active Month</p>
-            <p className="mt-1 text-lg font-semibold text-zinc-100">{activeMonthLabel}</p>
-            <p className="mt-1 text-xs text-zinc-400">Query: {month}</p>
+          <div className="space-y-3 rounded-xl border border-zinc-800 bg-zinc-900/70 px-4 py-3 text-right">
+            <div>
+              <p className="text-xs uppercase tracking-wide text-zinc-500">Active Month</p>
+              <p className="mt-1 text-lg font-semibold text-zinc-100">{activeMonthLabel}</p>
+              <p className="mt-1 text-xs text-zinc-400">Query: {month}</p>
+            </div>
+            <div className="rounded-lg border border-zinc-700 bg-zinc-950/70 px-3 py-2 text-left">
+              <p className="text-[11px] uppercase tracking-wide text-zinc-500">Shock Context</p>
+              {activeShock ? (
+                <>
+                  <p className="mt-1 text-sm font-medium text-amber-100">{activeShock.title}</p>
+                  <p className="mt-1 text-xs text-zinc-400">Shock ID {activeShock.id}</p>
+                </>
+              ) : (
+                <p className="mt-1 text-sm text-zinc-400">No active shock at the moment.</p>
+              )}
+            </div>
           </div>
         </div>
 

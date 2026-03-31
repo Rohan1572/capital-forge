@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { getActiveShock } from "@/lib/shocks";
 
 type StrategyMetrics = {
   expectedReturn?: number;
@@ -30,6 +31,11 @@ type StrategyRow = {
   allocation: unknown;
   metrics: unknown;
   createdAt: Date;
+};
+
+type ActiveShockSummary = {
+  id: string;
+  title: string;
 };
 
 function toNumber(value: unknown, fallback: number): number {
@@ -113,7 +119,7 @@ export async function GET(request: Request) {
     const monthParam = url.searchParams.get("month");
     const monthRange = buildMonthRange(monthParam);
 
-    const [total, strategies] = await Promise.all([
+    const [total, strategies, activeShock] = await Promise.all([
       prisma.strategy.count({
         where: {
           createdAt: {
@@ -133,6 +139,7 @@ export async function GET(request: Request) {
         skip,
         take: pageSize,
       }),
+      getActiveShock().catch(() => null),
     ]);
 
     const typedStrategies = strategies as StrategyRow[];
@@ -150,7 +157,6 @@ export async function GET(request: Request) {
       const user = usersById.get(strategy.userId);
       return {
         id: strategy.id,
-
         name: user ? getName(user) : "Anonymous",
         allocation: normalizeAllocation(strategy.allocation),
         metrics: normalizeMetrics(strategy.metrics),
@@ -174,13 +180,22 @@ export async function GET(request: Request) {
           page,
           pageSize,
           total,
+          activeShockId: activeShock?.id ?? null,
         },
       },
     });
 
+    const activeShockSummary: ActiveShockSummary | null = activeShock
+      ? {
+          id: activeShock.id,
+          title: activeShock.title,
+        }
+      : null;
+
     return NextResponse.json({
       data: ranked,
       month: monthRange.label,
+      activeShock: activeShockSummary,
       pagination: {
         page,
         pageSize,
