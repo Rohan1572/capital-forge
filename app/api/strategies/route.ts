@@ -4,6 +4,8 @@ import {
   SIMULATION_ASSUMPTIONS_VERSION,
   buildSimulationAssumptionsSnapshot,
 } from "@/lib/simulationAudit";
+import { RISK_FREE_RATE } from "@/lib/env";
+import { computeSimulationMetrics } from "@/lib/metrics";
 import { prisma } from "@/lib/prisma";
 import { getSessionUser } from "@/lib/session";
 
@@ -45,6 +47,14 @@ export async function POST(request: Request) {
         : SIMULATION_ASSUMPTIONS_VERSION;
     const assumptions =
       body.assumptions == null ? buildSimulationAssumptionsSnapshot() : body.assumptions;
+    const simulationResults =
+      Array.isArray(body.simulationResults) &&
+      body.simulationResults.every((entry) => typeof entry === "number" && Number.isFinite(entry))
+        ? (body.simulationResults as number[])
+        : null;
+    const metrics = simulationResults
+      ? computeSimulationMetrics(simulationResults, RISK_FREE_RATE)
+      : body.metrics;
     const shockModifiers =
       body.shockModifiers == null ? DbNull : (body.shockModifiers as InputJsonValue);
     const simulationShock =
@@ -53,7 +63,7 @@ export async function POST(request: Request) {
     const strategyData = {
       userId: user.id,
       allocation: body.allocation as InputJsonValue,
-      metrics: body.metrics as InputJsonValue,
+      metrics: metrics as InputJsonValue,
       assumptionsVersion,
       assumptions: assumptions as InputJsonValue,
       seed,
@@ -77,7 +87,7 @@ export async function POST(request: Request) {
         metadata: {
           strategyId: strategy.id,
           allocation: body.allocation,
-          metrics: body.metrics,
+          metrics,
           assumptionsVersion,
           seed,
           shockId,

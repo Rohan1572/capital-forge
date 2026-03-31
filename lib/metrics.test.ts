@@ -110,4 +110,12 @@ describe("computeSimulationMetrics", () => {
     expect(metrics.conditionalValueAtRisk95).toBeCloseTo(-0.4, 10);
     expect(metrics.probabilityOfLossOver30).toBeCloseTo(0.2, 10);
   });
+
+  it("reduces sharpe ratio when the risk-free rate is non-zero", () => {
+    const neutralMetrics = computeSimulationMetrics([0.1, 0.2, 0], 0);
+    const configuredMetrics = computeSimulationMetrics([0.1, 0.2, 0], 0.02);
+
+    expect(configuredMetrics.sharpeRatio).toBeCloseTo(0.9797958971, 10);
+    expect(configuredMetrics.sharpeRatio).toBeLessThan(neutralMetrics.sharpeRatio);
+  });
 });

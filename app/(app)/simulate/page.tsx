@@ -20,6 +20,7 @@ import { computeSimulationMetrics, type SimulationMetrics } from "@/lib/metrics"
 import { assetReturnAssumptions, simulationRegimes } from "@/lib/assetAssumptions";
 import { baseCorrelationMatrix } from "@/lib/correlationMatrix";
 import type { DebateAgentCall } from "@/lib/debateEngine";
+import { RISK_FREE_RATE } from "@/lib/env";
 import { buildSimulationAuditSnapshot } from "@/lib/simulationAudit";
 import type { ShockParameters } from "@/lib/shockEngine";
 
@@ -453,13 +454,13 @@ export default function SimulatePage() {
       const baselineScenario: SimulationScenario = {
         label: "Baseline",
         outcomes: baselineOutcomes,
-        metrics: computeSimulationMetrics(baselineOutcomes),
+        metrics: computeSimulationMetrics(baselineOutcomes, RISK_FREE_RATE),
       };
       const shockedScenario: SimulationScenario | null = shockedOutcomes
         ? {
             label: `Active shock: ${shockForRun?.title ?? "Enabled"}`,
             outcomes: shockedOutcomes,
-            metrics: computeSimulationMetrics(shockedOutcomes),
+            metrics: computeSimulationMetrics(shockedOutcomes, RISK_FREE_RATE),
           }
         : null;
 
