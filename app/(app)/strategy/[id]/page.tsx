@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { headers } from "next/headers";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { MetricLabel } from "@/components/MetricLabel";
 import { RiskExplainerPanel } from "@/components/RiskExplainerPanel";
 import { SimulationChart } from "@/components/SimulationChart";
@@ -139,12 +139,12 @@ function loadReplaySeries(strategy: StrategyRecord): StrategyReplayInfo | null {
 
   const allocation = strategy.allocation as Allocation;
   const assumptions = parseSimulationAssumptionsSnapshot(strategy.assumptions);
-  const seed =
-    typeof strategy.seed === "number"
-      ? strategy.seed
-      : typeof strategy.simulationSeed === "number"
-        ? strategy.simulationSeed
-        : null;
+  let seed: number | null = null;
+  if (typeof strategy.seed === "number") {
+    seed = strategy.seed;
+  } else if (typeof strategy.simulationSeed === "number") {
+    seed = strategy.simulationSeed;
+  }
   if (seed === null) return null;
 
   const shock = parseShockSnapshot(strategy.shockModifiers ?? strategy.simulationShock);
@@ -184,7 +184,7 @@ function MetricRow({
   metric,
   label,
   value,
-}: {
+}: Readonly<{
   metric:
     | "sharpeRatio"
     | "maxDrawdown"
@@ -193,7 +193,7 @@ function MetricRow({
     | "probabilityOfLossOver30";
   label: string;
   value: string;
-}) {
+}>) {
   return (
     <div className="flex items-center justify-between gap-3 rounded-lg border border-zinc-800/80 bg-zinc-950/50 px-3 py-2">
       <MetricLabel
@@ -208,9 +208,9 @@ function MetricRow({
 
 function AssumptionsCard({
   assumptions,
-}: {
+}: Readonly<{
   assumptions: ReturnType<typeof parseSimulationAssumptionsSnapshot>;
-}) {
+}>) {
   return (
     <article className="rounded-xl border border-zinc-800 bg-zinc-900/80 p-5">
       <h2 className="text-sm uppercase tracking-wide text-zinc-500">Assumptions Snapshot</h2>
@@ -280,7 +280,7 @@ function AssumptionsCard({
   );
 }
 
-function ShockContextCard({ shock }: { shock: ShockParameters | null }) {
+function ShockContextCard({ shock }: Readonly<{ shock: ShockParameters | null }>) {
   return (
     <article className="rounded-xl border border-zinc-800 bg-zinc-900/80 p-5">
       <h2 className="text-sm uppercase tracking-wide text-zinc-500">Active Shock Context</h2>
@@ -385,7 +385,7 @@ function ShockContextCard({ shock }: { shock: ShockParameters | null }) {
   );
 }
 
-function MetricsSidebar({ metrics }: { metrics: SimulationMetrics }) {
+function MetricsSidebar({ metrics }: Readonly<{ metrics: SimulationMetrics }>) {
   return (
     <article className="rounded-xl border border-zinc-800 bg-zinc-900/80 p-5">
       <h2 className="text-sm uppercase tracking-wide text-zinc-500">Metrics at a Glance</h2>
@@ -423,12 +423,7 @@ function MetricsSidebar({ metrics }: { metrics: SimulationMetrics }) {
 export default async function StrategyPage({ params }: StrategyPageProps) {
   const user = await getSessionUser();
   if (!user) {
-    return (
-      <>
-        <h1 className="text-3xl font-semibold">Strategy Details</h1>
-        <p className="text-zinc-400">You must be signed in to view this strategy.</p>
-      </>
-    );
+    redirect("/login");
   }
 
   const { id } = await params;

@@ -1,10 +1,9 @@
 import crypto from "node:crypto";
 import { prisma } from "@/lib/prisma";
+import { SESSION_COOKIE_NAME } from "@/lib/sessionCookie";
 
 export type AuthUser = Pick<PrismaUser, "id" | "email" | "name" | "createdAt">;
 export type AuthSession = PrismaSession;
-
-const SESSION_COOKIE_NAME = "cf_session";
 const SESSION_TTL_DAYS = 30;
 
 function getSessionExpiry() {
