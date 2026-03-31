@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { getSessionUser } from "@/lib/session";
 import { LogoutButton } from "@/components/LogoutButton";
+import { MonitoringWidget } from "@/components/MonitoringWidget";
 import { RecentSimulationRunsWidget } from "@/components/RecentSimulationRunsWidget";
 
 export default async function DashboardPage() {
@@ -30,6 +31,7 @@ export default async function DashboardPage() {
       </div>
 
       <RecentSimulationRunsWidget take={5} />
+      <MonitoringWidget days={30} />
     </>
   );
 }

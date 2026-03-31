@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { estimateAiCostUsd } from "@/lib/aiCost";
 import { recordAiResponseLog } from "@/lib/aiResponseLog";
 import { buildNeutralDebateResponse, checkAiAdviceLanguage } from "@/lib/aiSafety";
 import { validateAllocation } from "@/lib/allocationValidation";
@@ -29,6 +30,7 @@ type DebateAiCallMeta = {
 type DebateAiMeta = {
   model: string;
   latencyMs: number;
+  estimatedCostUsd: number | null;
   safetyNotice?: string | null;
   safetyMatchedTerms?: string[];
   usage?: DebateAiUsage;
@@ -88,16 +90,20 @@ export async function POST(request: Request) {
     const cacheKey = buildRiskCacheKey(allocation, body.metrics);
     const cached = debateCache.get(cacheKey);
     if (cached) {
+      const cachedMeta = {
+        ...cached.meta,
+        estimatedCostUsd: estimateAiCostUsd(cached.meta?.usage),
+      };
       await recordAiResponseLog({
         kind: "debate",
         strategyId: body.strategyId,
         metadata: {
           cached: true,
-          ...(cached.meta ?? {}),
+          ...cachedMeta,
         },
       });
       return NextResponse.json({
-        data: { calls: cached.calls, sections: cached.sections, meta: cached.meta, cached: true },
+        data: { calls: cached.calls, sections: cached.sections, meta: cachedMeta, cached: true },
       });
     }
 
@@ -199,6 +205,7 @@ export async function POST(request: Request) {
     const meta: DebateAiMeta = {
       model,
       latencyMs: Date.now() - startTime,
+      estimatedCostUsd: estimateAiCostUsd(usageTotals),
       safetyNotice: safety.disclaimer,
       safetyMatchedTerms: safety.matchedTerms.length > 0 ? safety.matchedTerms : undefined,
       usage: hasUsage ? usageTotals : undefined,

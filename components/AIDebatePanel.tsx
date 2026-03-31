@@ -22,6 +22,7 @@ type AIDebatePanelProps = {
         totalTokens?: number;
       };
     }>;
+    estimatedCostUsd?: number | null;
   };
 };
 
@@ -72,6 +73,11 @@ export function AIDebatePanel({ calls, meta }: AIDebatePanelProps) {
             <span className="rounded-full border border-zinc-700 bg-zinc-950 px-2.5 py-1 text-zinc-300">
               Latency: {meta.latencyMs}ms
             </span>
+            {typeof meta.estimatedCostUsd === "number" ? (
+              <span className="rounded-full border border-zinc-700 bg-zinc-950 px-2.5 py-1 text-zinc-300">
+                Cost: ${meta.estimatedCostUsd.toFixed(4)}
+              </span>
+            ) : null}
             {meta.cached ? (
               <span className="rounded-full border border-cyan-500/40 bg-cyan-950/30 px-2.5 py-1 text-cyan-200">
                 Cached

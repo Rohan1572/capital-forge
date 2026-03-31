@@ -27,6 +27,7 @@ export async function POST(request: Request) {
       seed?: unknown;
       shockId?: unknown;
       shockModifiers?: unknown;
+      simulationLatencyMs?: unknown;
       simulationResults?: unknown;
       simulationSeed?: unknown;
       simulationMode?: unknown;
@@ -68,6 +69,10 @@ export async function POST(request: Request) {
       : body.metrics;
     const shockModifiers =
       body.shockModifiers == null ? DbNull : (body.shockModifiers as InputJsonValue);
+    const simulationLatencyMs =
+      typeof body.simulationLatencyMs === "number" && Number.isFinite(body.simulationLatencyMs)
+        ? Math.max(0, Math.round(body.simulationLatencyMs))
+        : null;
     const simulationShock =
       body.simulationShock == null ? DbNull : (body.simulationShock as InputJsonValue);
 
@@ -120,6 +125,7 @@ export async function POST(request: Request) {
           seed,
           shockId,
           shockModifiers: body.shockModifiers ?? null,
+          simulationLatencyMs,
           simulationMode: typeof body.simulationMode === "string" ? body.simulationMode : null,
         },
       },

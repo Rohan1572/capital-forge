@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { buildRiskExplainerPrompt, buildRiskPromptInput } from "@/lib/aiPrompts";
+import { estimateAiCostUsd } from "@/lib/aiCost";
 import { recordAiResponseLog } from "@/lib/aiResponseLog";
 import { buildNeutralAiWarningMarkdown, checkAiAdviceLanguage } from "@/lib/aiSafety";
 import { validateAllocation } from "@/lib/allocationValidation";
@@ -18,6 +19,7 @@ type RiskExplainerJson = {
 type RiskAiMeta = {
   model: string;
   latencyMs: number;
+  estimatedCostUsd: number | null;
   safetyNotice?: string | null;
   safetyMatchedTerms?: string[];
   usage?: {
@@ -153,16 +155,20 @@ export async function POST(request: Request) {
     const cacheKey = buildRiskCacheKey(allocation, body.metrics);
     const cached = riskCache.get(cacheKey);
     if (cached) {
+      const cachedMeta = {
+        ...cached.meta,
+        estimatedCostUsd: estimateAiCostUsd(cached.meta?.usage),
+      };
       await recordAiResponseLog({
         kind: "risk",
         strategyId: body.strategyId,
         metadata: {
           cached: true,
-          ...(cached.meta ?? {}),
+          ...cachedMeta,
         },
       });
       return NextResponse.json({
-        data: { markdown: cached.markdown, meta: cached.meta, cached: true },
+        data: { markdown: cached.markdown, meta: cachedMeta, cached: true },
       });
     }
 
@@ -238,6 +244,11 @@ export async function POST(request: Request) {
     const meta: RiskAiMeta = {
       model: payload.model ?? model,
       latencyMs,
+      estimatedCostUsd: estimateAiCostUsd({
+        inputTokens: payload.usage?.input_tokens,
+        outputTokens: payload.usage?.output_tokens,
+        totalTokens: payload.usage?.total_tokens,
+      }),
       safetyNotice: safety.disclaimer,
       safetyMatchedTerms: safety.matchedTerms.length > 0 ? safety.matchedTerms : undefined,
       usage: {

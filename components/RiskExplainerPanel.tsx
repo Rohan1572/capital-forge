@@ -17,6 +17,7 @@ type RiskExplainerPanelProps = {
       outputTokens?: number;
       totalTokens?: number;
     };
+    estimatedCostUsd?: number | null;
   };
 };
 
@@ -114,6 +115,11 @@ export function RiskExplainerPanel({ markdown, meta }: RiskExplainerPanelProps) 
             {meta.usage?.totalTokens ? (
               <span className="rounded-full border border-zinc-700 bg-zinc-950 px-2.5 py-1 text-zinc-300">
                 Tokens: {meta.usage.totalTokens}
+              </span>
+            ) : null}
+            {typeof meta.estimatedCostUsd === "number" ? (
+              <span className="rounded-full border border-zinc-700 bg-zinc-950 px-2.5 py-1 text-zinc-300">
+                Cost: ${meta.estimatedCostUsd.toFixed(4)}
               </span>
             ) : null}
           </div>

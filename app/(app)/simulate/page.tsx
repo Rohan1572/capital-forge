@@ -369,6 +369,7 @@ export default function SimulatePage() {
     await new Promise<void>((resolve) => setTimeout(resolve, 0));
 
     try {
+      const simulationStartedAt = performance.now();
       const runSeed = createSimulationSeed();
       let shockForRun: ShockParameters | null = null;
       const shockResponse = await fetch("/api/shocks/active");
@@ -466,6 +467,7 @@ export default function SimulatePage() {
 
       const selectedScenario = shockedScenario ?? baselineScenario;
       const metrics = selectedScenario.metrics;
+      const simulationLatencyMs = Math.round(performance.now() - simulationStartedAt);
 
       const auditSnapshot = buildSimulationAuditSnapshot(
         runSeed,
@@ -483,6 +485,7 @@ export default function SimulatePage() {
           seed: auditSnapshot.seed,
           shockId: auditSnapshot.shockId,
           shockModifiers: auditSnapshot.shockModifiers,
+          simulationLatencyMs,
           simulationResults: selectedScenario.outcomes,
           simulationSeed: runSeed,
           simulationMode: shockedScenario ? "shocked" : "baseline",
