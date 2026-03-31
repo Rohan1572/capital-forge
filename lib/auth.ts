@@ -1,6 +1,6 @@
 import crypto from "node:crypto";
-import { prisma } from "@/lib/prisma";
-import { SESSION_COOKIE_NAME } from "@/lib/sessionCookie";
+import { prisma } from "./prisma";
+import { SESSION_COOKIE_NAME } from "./sessionCookie";
 
 export type AuthUser = Pick<PrismaUser, "id" | "email" | "name" | "createdAt">;
 export type AuthSession = PrismaSession;

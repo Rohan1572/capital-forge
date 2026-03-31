@@ -4,17 +4,17 @@ import {
   type AssetKey,
   type AssetReturnAssumptions,
   type SimulationRegimes,
-} from "@/lib/assetAssumptions";
+} from "./assetAssumptions";
 import {
   baseCorrelationMatrix,
   clampCorrelation,
   type CorrelationMatrix,
-} from "@/lib/correlationMatrix";
+} from "./correlationMatrix";
 import {
   applyShockToAssumptions,
   applyShockToCorrelation,
   type ShockParameters,
-} from "@/lib/shockEngine";
+} from "./shockEngine";
 
 export type Allocation = {
   equity: number;

@@ -1,6 +1,6 @@
 import { cookies } from "next/headers";
-import { prisma } from "@/lib/prisma";
-import { getSessionCookieName } from "@/lib/auth";
+import { prisma } from "./prisma";
+import { getSessionCookieName } from "./auth";
 
 export type SessionUser = Pick<PrismaUser, "id" | "email" | "name" | "createdAt">;
 

@@ -146,6 +146,45 @@ describe("buildRiskExplainerMarkdown", () => {
     expect(markdown).toContain("### Downside Risks");
     expect(markdown).toContain("- Warning:");
   });
+
+  it("renders a stable markdown response snapshot", () => {
+    const markdown = buildRiskExplainerMarkdown({
+      allocation: {
+        equity: 40,
+        startups: 20,
+        bonds: 15,
+        gold: 10,
+        crypto: 10,
+        cash: 5,
+      },
+      expectedReturn: 0.11,
+      sharpeRatio: 0.44,
+      valueAtRisk: -0.21,
+      conditionalValueAtRisk: -0.27,
+      maxDrawdown: 0.31,
+    });
+
+    expect(markdown).toMatchInlineSnapshot(`
+      "### Overall Assessment
+      - Expected return is 11.00% with Sharpe 0.44.
+      - The portfolio currently tilts toward equity (40%), startups (20%).
+
+      ### Weaknesses
+      - Risk-adjusted performance is weak (Sharpe 0.44), indicating return quality may not justify volatility.
+      - Tail-loss profile is elevated (VaR 95% 21.0%), suggesting meaningful downside in stress periods.
+      - Extreme tail outcomes are heavy (CVaR 95% 27.0%), implying deeper losses in the worst scenarios.
+      - Drawdown depth is high (max drawdown 31.0%), which can pressure risk tolerance and capital preservation.
+
+      ### Allocation Improvements
+      - Reduce combined Startups/Crypto by 5-10% and reallocate to Bonds or Cash to improve downside protection.
+
+      ### Downside Risks
+      - Warning: Historical-style stress can exceed VaR assumptions; a 95% VaR of -21.0% still leaves 5% tail outcomes potentially worse.
+      - Warning: CVaR of -27.0% implies the average of the worst 5% outcomes can be materially deeper.
+      - Warning: A drawdown profile of 31.0% can force unfavorable de-risking if liquidity needs rise.
+      - Warning: Current concentration in equity (40%), startups (20%) may amplify correlation shocks during market dislocations."
+    `);
+  });
 });
 
 describe("buildShockGeneratorPrompt", () => {

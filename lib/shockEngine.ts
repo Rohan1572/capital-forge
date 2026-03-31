@@ -1,5 +1,5 @@
-import type { AssetKey, AssetReturnAssumptions } from "@/lib/assetAssumptions";
-import { clampCorrelation, type CorrelationMatrix } from "@/lib/correlationMatrix";
+import type { AssetKey, AssetReturnAssumptions } from "./assetAssumptions";
+import { clampCorrelation, type CorrelationMatrix } from "./correlationMatrix";
 
 export type CorrelationShiftMatrix = Partial<Record<AssetKey, Partial<Record<AssetKey, number>>>>;
 

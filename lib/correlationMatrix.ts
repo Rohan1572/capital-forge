@@ -1,4 +1,4 @@
-import { assetReturnAssumptions, type AssetKey } from "@/lib/assetAssumptions";
+import { assetReturnAssumptions, type AssetKey } from "./assetAssumptions";
 
 export type CorrelationMatrix = Record<AssetKey, Record<AssetKey, number>>;
 

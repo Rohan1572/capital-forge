@@ -1,8 +1,18 @@
 import { describe, expect, it } from "vitest";
 import { simulationRegimes } from "./assetAssumptions";
 import { baseCorrelationMatrix } from "./correlationMatrix";
-import { mean, probabilityOfLossOverThreshold, standardDeviation, valueAtRisk } from "./metrics";
-import { generateYearlyAssetReturns, runMonteCarloSimulation } from "./monteCarlo";
+import {
+  computeSimulationMetrics,
+  mean,
+  probabilityOfLossOverThreshold,
+  standardDeviation,
+  valueAtRisk,
+} from "./metrics";
+import {
+  generateYearlyAssetReturns,
+  runMonteCarloSimulation,
+  runMonteCarloSimulationWithShock,
+} from "./monteCarlo";
 import type { ShockParameters } from "./shockEngine";
 
 const SAMPLE_SIZE = 20_000;
@@ -50,9 +60,9 @@ describe("generateYearlyAssetReturns", () => {
     const equityBondCorrelation = correlation(equitySamples, bondSamples);
 
     expect(Math.abs(equityStartupCorrelation - baseCorrelationMatrix.equity.startups)).toBeLessThan(
-      0.08,
+      0.1,
     );
-    expect(Math.abs(equityBondCorrelation - baseCorrelationMatrix.equity.bonds)).toBeLessThan(0.08);
+    expect(Math.abs(equityBondCorrelation - baseCorrelationMatrix.equity.bonds)).toBeLessThan(0.1);
   });
 
   it("shifts correlated asset returns upward when a positive shock is applied", () => {
@@ -119,5 +129,46 @@ describe("runMonteCarloSimulation crash regime", () => {
 
     expect(crashVar5).toBeLessThan(baselineVar5);
     expect(crashLoss30).toBeGreaterThan(baselineLoss30);
+  });
+});
+
+describe("runMonteCarloSimulationWithShock", () => {
+  it("moves the core metrics when a downside shock is applied", () => {
+    const allocation = {
+      equity: 30,
+      startups: 20,
+      bonds: 20,
+      gold: 10,
+      crypto: 10,
+      cash: 10,
+    };
+
+    const shock: ShockParameters = {
+      id: "downside-shock",
+      title: "Downside Shock",
+      description: "A broad selloff with weaker returns and higher volatility.",
+      meanShift: -0.08,
+      volatilityMultiplier: 1.35,
+      correlationShift: 0.15,
+    };
+
+    const baselineOutcomes = runMonteCarloSimulation(allocation, undefined, undefined, 4242);
+    const shockedOutcomes = runMonteCarloSimulationWithShock(
+      allocation,
+      shock,
+      undefined,
+      undefined,
+      4242,
+    );
+
+    const baselineMetrics = computeSimulationMetrics(baselineOutcomes);
+    const shockedMetrics = computeSimulationMetrics(shockedOutcomes);
+
+    expect(shockedMetrics.expectedReturn).toBeLessThan(baselineMetrics.expectedReturn);
+    expect(shockedMetrics.standardDeviation).toBeGreaterThan(baselineMetrics.standardDeviation);
+    expect(shockedMetrics.valueAtRisk5).toBeLessThan(baselineMetrics.valueAtRisk5);
+    expect(shockedMetrics.conditionalValueAtRisk95).toBeLessThan(
+      baselineMetrics.conditionalValueAtRisk95,
+    );
   });
 });

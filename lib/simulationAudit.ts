@@ -1,10 +1,10 @@
-import { type AssetReturnAssumptions } from "@/lib/assetAssumptions";
-import type { ShockParameters } from "@/lib/shockEngine";
+import { type AssetReturnAssumptions } from "./assetAssumptions";
+import type { ShockParameters } from "./shockEngine";
 import {
   buildSimulationConfigSnapshot,
   SIMULATION_CONFIG_VERSION,
   type SimulationConfigSnapshot,
-} from "@/lib/simulationConfig";
+} from "./simulationConfig";
 
 export const SIMULATION_ASSUMPTIONS_VERSION = SIMULATION_CONFIG_VERSION;
 

@@ -32,4 +32,23 @@ describe("neutral replacements", () => {
     expect(buildNeutralDebateResponse()).toContain("Opening Statement");
     expect(buildNeutralDebateResponse()).toContain("Final Recommendation");
   });
+
+  it("renders the neutral warning and debate replacements as stable snapshots", () => {
+    expect(buildNeutralAiWarningMarkdown()).toMatchInlineSnapshot(`
+      "### Safety Notice
+      - This response was replaced because it used investment-advice language.
+      - Review the simulation metrics and allocation context instead."
+    `);
+
+    expect(buildNeutralDebateResponse()).toMatchInlineSnapshot(`
+      "Opening Statement
+      - This response was replaced because it used investment-advice language.
+
+      Counter Arguments
+      - Review the simulation metrics and allocation context instead.
+
+      Final Recommendation
+      - Use the simulation output as analytical context, not trading advice."
+    `);
+  });
 });

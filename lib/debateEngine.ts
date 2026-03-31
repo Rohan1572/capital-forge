@@ -1,7 +1,7 @@
-import type { Allocation } from "@/lib/monteCarlo";
-import type { SimulationMetrics } from "@/lib/metrics";
-import { buildDebateAgentPrompt } from "@/lib/aiPrompts";
-import type { DebateAgentRole } from "@/lib/aiPrompts";
+import type { Allocation } from "./monteCarlo";
+import type { SimulationMetrics } from "./metrics";
+import { buildDebateAgentPrompt } from "./aiPrompts";
+import type { DebateAgentRole } from "./aiPrompts";
 
 export type DebateAgentCall = {
   role: DebateAgentRole;
