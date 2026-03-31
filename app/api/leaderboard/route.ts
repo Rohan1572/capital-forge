@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 
 type StrategyMetrics = {
@@ -20,15 +19,25 @@ type LeaderboardEntry = {
   rank: number;
 };
 
-type LeaderboardStrategy = Prisma.StrategyGetPayload<{
-  include: { user: true };
-}>;
+type UserSummary = {
+  id: string;
+  name: string | null;
+  email: string;
+};
+
+type StrategyRow = {
+  id: string;
+  userId: string;
+  allocation: unknown;
+  metrics: unknown;
+  createdAt: Date;
+};
 
 function toNumber(value: unknown, fallback: number): number {
   return typeof value === "number" && Number.isFinite(value) ? value : fallback;
 }
 
-function getName(user: { name: string | null; email: string }): string {
+function getName(user: UserSummary): string {
   if (user.name && user.name.trim().length > 0) return user.name;
   const fallback = user.email.split("@")[0];
   return fallback || "Anonymous";
@@ -78,6 +87,22 @@ function buildMonthRange(monthParam: string | null): { start: Date; end: Date; l
   return { start, end, label };
 }
 
+function normalizeMetrics(metrics: unknown): StrategyMetrics {
+  if (!metrics || typeof metrics !== "object") return {};
+  const record = metrics as Record<string, unknown>;
+  return {
+    expectedReturn: toNumber(record.expectedReturn, 0),
+    sharpeRatio: toNumber(record.sharpeRatio, 0),
+    maxDrawdown: toNumber(record.maxDrawdown, 0),
+    valueAtRisk5: toNumber(record.valueAtRisk5, 0),
+    conditionalValueAtRisk95: toNumber(record.conditionalValueAtRisk95, 0),
+  };
+}
+
+function normalizeAllocation(allocation: unknown): Record<string, unknown> {
+  return allocation && typeof allocation === "object" ? (allocation as Record<string, unknown>) : {};
+}
+
 export async function GET(request: Request) {
   try {
     const url = new URL(request.url);
@@ -97,7 +122,6 @@ export async function GET(request: Request) {
         },
       }),
       prisma.strategy.findMany({
-        include: { user: true },
         orderBy: { createdAt: "desc" },
         where: {
           createdAt: {
@@ -110,15 +134,27 @@ export async function GET(request: Request) {
       }),
     ]);
 
-    const entries: LeaderboardEntry[] = strategies.map((strategy: LeaderboardStrategy) => ({
-      id: strategy.id,
-      userId: strategy.userId,
-      name: getName(strategy.user),
-      allocation: (strategy.allocation as Record<string, unknown>) ?? {},
-      metrics: (strategy.metrics as StrategyMetrics) ?? {},
-      createdAt: strategy.createdAt.toISOString(),
-      rank: 0,
-    }));
+    const typedStrategies = strategies as StrategyRow[];
+    const userIds = [...new Set(typedStrategies.map((strategy) => strategy.userId))];
+    const users = await prisma.user.findMany({
+      where: { id: { in: userIds } },
+      select: { id: true, name: true, email: true },
+    });
+
+    const usersById = new Map<string, UserSummary>(users.map((user) => [user.id, user] as const));
+
+    const entries: LeaderboardEntry[] = typedStrategies.map((strategy) => {
+      const user = usersById.get(strategy.userId);
+      return {
+        id: strategy.id,
+        userId: strategy.userId,
+        name: user ? getName(user) : "Anonymous",
+        allocation: normalizeAllocation(strategy.allocation),
+        metrics: normalizeMetrics(strategy.metrics),
+        createdAt: strategy.createdAt.toISOString(),
+        rank: 0,
+      };
+    });
 
     entries.sort(compareStrategies);
 
@@ -154,5 +190,4 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Unable to load leaderboard." }, { status: 500 });
   }
 }
-
 
