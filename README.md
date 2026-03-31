@@ -30,6 +30,7 @@ To learn more about Next.js, take a look at the following resources:
 ## Data Handling
 
 - [Privacy and data handling policy](docs/privacy-and-data-handling.md)
+- [Launch operations runbook](docs/launch-operations-runbook.md)
 
 You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
 

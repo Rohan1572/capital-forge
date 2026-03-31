@@ -22,3 +22,4 @@
 - AI prompts should only include the data required to produce the analysis.
 - Monitoring should use aggregated counts, latency, and estimated cost fields rather than user content.
 - If exports or support tooling are added later, they should exclude passwords, session tokens, and raw prompt text by default.
+- Operational checks and incident response should rely on the monitoring summary route and restored-database validation, not direct inspection of raw personal data.
