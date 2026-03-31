@@ -65,6 +65,18 @@ model Strategy {
   @@index([userId])
 }
 
+model AiResponseLog {
+  id         String   @id @default(cuid())
+  strategyId String?
+  kind       String
+  metadata   Json?
+  createdAt  DateTime @default(now())
+
+  @@index([strategyId])
+  @@index([kind])
+  @@index([createdAt])
+}
+
 model ShockEvent {
   id           String   @id @default(cuid())
   title        String

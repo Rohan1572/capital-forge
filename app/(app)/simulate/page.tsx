@@ -467,42 +467,28 @@ export default function SimulatePage() {
       const selectedScenario = shockedScenario ?? baselineScenario;
       const metrics = selectedScenario.metrics;
 
-      const [aiRiskResponse, aiDebateResponse, saveResponse] = await Promise.all([
-        (() => {
-          const auditSnapshot = buildSimulationAuditSnapshot(
-            runSeed,
-            shockedScenario && shockForRun ? shockForRun : null,
-          );
-          return fetch("/api/strategies", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            credentials: "include",
-            body: JSON.stringify({
-              allocation,
-              metrics,
-              assumptionsVersion: auditSnapshot.assumptionsVersion,
-              assumptions: auditSnapshot.assumptions,
-              seed: auditSnapshot.seed,
-              shockId: auditSnapshot.shockId,
-              shockModifiers: auditSnapshot.shockModifiers,
-              simulationResults: selectedScenario.outcomes,
-              simulationSeed: runSeed,
-              simulationMode: shockedScenario ? "shocked" : "baseline",
-              simulationShock: shockedScenario && shockForRun ? shockForRun : null,
-            }),
-          });
-        })(),
-        fetch("/api/ai/risk", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ allocation, metrics }),
+      const auditSnapshot = buildSimulationAuditSnapshot(
+        runSeed,
+        shockedScenario && shockForRun ? shockForRun : null,
+      );
+      const saveResponse = await fetch("/api/strategies", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          allocation,
+          metrics,
+          assumptionsVersion: auditSnapshot.assumptionsVersion,
+          assumptions: auditSnapshot.assumptions,
+          seed: auditSnapshot.seed,
+          shockId: auditSnapshot.shockId,
+          shockModifiers: auditSnapshot.shockModifiers,
+          simulationResults: selectedScenario.outcomes,
+          simulationSeed: runSeed,
+          simulationMode: shockedScenario ? "shocked" : "baseline",
+          simulationShock: shockedScenario && shockForRun ? shockForRun : null,
         }),
-        fetch("/api/ai/debate", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ allocation, metrics }),
-        }),
-      ]);
+      });
 
       let errorMessage: string | null = null;
       let savedStrategyId: string | null = null;
@@ -512,6 +498,19 @@ export default function SimulatePage() {
         const savePayload = (await saveResponse.json()) as { data?: { id?: string } };
         savedStrategyId = savePayload.data?.id ?? null;
       }
+
+      const [aiRiskResponse, aiDebateResponse] = await Promise.all([
+        fetch("/api/ai/risk", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ allocation, metrics, strategyId: savedStrategyId ?? undefined }),
+        }),
+        fetch("/api/ai/debate", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ allocation, metrics, strategyId: savedStrategyId ?? undefined }),
+        }),
+      ]);
 
       if (aiRiskResponse.ok) {
         const payload = (await aiRiskResponse.json()) as RiskAiResponse;

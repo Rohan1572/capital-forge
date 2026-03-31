@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { buildRiskExplainerPrompt, buildRiskPromptInput } from "@/lib/aiPrompts";
+import { recordAiResponseLog } from "@/lib/aiResponseLog";
 import type { Allocation } from "@/lib/monteCarlo";
 import type { SimulationMetrics } from "@/lib/metrics";
 import { TTLCache, buildRiskCacheKey } from "@/lib/cache";
@@ -129,6 +130,7 @@ export async function POST(request: Request) {
     const body = (await request.json()) as {
       allocation?: Allocation;
       metrics?: SimulationMetrics;
+      strategyId?: string;
     };
 
     if (!body.allocation || !body.metrics) {
@@ -138,6 +140,14 @@ export async function POST(request: Request) {
     const cacheKey = buildRiskCacheKey(body.allocation, body.metrics);
     const cached = riskCache.get(cacheKey);
     if (cached) {
+      await recordAiResponseLog({
+        kind: "risk",
+        strategyId: body.strategyId,
+        metadata: {
+          cached: true,
+          ...(cached.meta ?? {}),
+        },
+      });
       return NextResponse.json({
         data: { markdown: cached.markdown, meta: cached.meta, cached: true },
       });
@@ -221,6 +231,14 @@ export async function POST(request: Request) {
     };
 
     riskCache.set(cacheKey, { markdown, meta });
+    await recordAiResponseLog({
+      kind: "risk",
+      strategyId: body.strategyId,
+      metadata: {
+        cached: false,
+        ...meta,
+      },
+    });
 
     return NextResponse.json({ data: { markdown, meta, cached: false } });
   } catch (error) {

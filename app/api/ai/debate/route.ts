@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { recordAiResponseLog } from "@/lib/aiResponseLog";
 import type { Allocation } from "@/lib/monteCarlo";
 import type { SimulationMetrics } from "@/lib/metrics";
 import { TTLCache, buildRiskCacheKey } from "@/lib/cache";
@@ -64,6 +65,7 @@ export async function POST(request: Request) {
     const body = (await request.json()) as {
       allocation?: Allocation;
       metrics?: SimulationMetrics;
+      strategyId?: string;
     };
 
     if (!body.allocation || !body.metrics) {
@@ -73,6 +75,14 @@ export async function POST(request: Request) {
     const cacheKey = buildRiskCacheKey(body.allocation, body.metrics);
     const cached = debateCache.get(cacheKey);
     if (cached) {
+      await recordAiResponseLog({
+        kind: "debate",
+        strategyId: body.strategyId,
+        metadata: {
+          cached: true,
+          ...(cached.meta ?? {}),
+        },
+      });
       return NextResponse.json({
         data: { calls: cached.calls, sections: cached.sections, meta: cached.meta, cached: true },
       });
@@ -173,6 +183,14 @@ export async function POST(request: Request) {
     };
 
     debateCache.set(cacheKey, { calls: result.calls, sections, meta });
+    await recordAiResponseLog({
+      kind: "debate",
+      strategyId: body.strategyId,
+      metadata: {
+        cached: false,
+        ...meta,
+      },
+    });
 
     return NextResponse.json({
       data: { calls: result.calls, sections, meta, cached: false },

@@ -49,6 +49,13 @@ type PrismaStrategy = PrismaModelRecord & {
   createdAt: Date;
 };
 
+type PrismaAiResponseLog = PrismaModelRecord & {
+  strategyId: string | null;
+  kind: string;
+  metadata: unknown;
+  createdAt: Date;
+};
+
 type PrismaSimulationRun = PrismaModelRecord & {
   name: string;
   status: string;
@@ -84,6 +91,7 @@ type PrismaClientLike = {
   user: PrismaDelegate<PrismaUser>;
   session: PrismaDelegate<PrismaSession>;
   strategy: PrismaDelegate<PrismaStrategy>;
+  aiResponseLog: PrismaDelegate<PrismaAiResponseLog>;
   simulationRun: PrismaDelegate<PrismaSimulationRun>;
   shockEvent: PrismaDelegate<PrismaShockEvent>;
   auditLog: PrismaDelegate<PrismaAuditLog>;
