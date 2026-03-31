@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 
 type StrategyMetrics = {
@@ -18,6 +19,10 @@ type LeaderboardEntry = {
   createdAt: string;
   rank: number;
 };
+
+type LeaderboardStrategy = Prisma.StrategyGetPayload<{
+  include: { user: true };
+}>;
 
 function toNumber(value: unknown, fallback: number): number {
   return typeof value === "number" && Number.isFinite(value) ? value : fallback;
@@ -105,7 +110,7 @@ export async function GET(request: Request) {
       }),
     ]);
 
-    const entries: LeaderboardEntry[] = strategies.map((strategy) => ({
+    const entries: LeaderboardEntry[] = strategies.map((strategy: LeaderboardStrategy) => ({
       id: strategy.id,
       userId: strategy.userId,
       name: getName(strategy.user),
@@ -149,3 +154,5 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Unable to load leaderboard." }, { status: 500 });
   }
 }
+
+
