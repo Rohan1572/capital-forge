@@ -141,7 +141,7 @@ export async function GET(request: Request) {
       select: { id: true, name: true, email: true },
     });
 
-    const usersById = new Map<string, UserSummary>(users.map((user) => [user.id, user] as const));
+    const usersById = new Map<string, UserSummary>(users.map((user: UserSummary) => [user.id, user] as const));
 
     const entries: LeaderboardEntry[] = typedStrategies.map((strategy) => {
       const user = usersById.get(strategy.userId);
@@ -190,4 +190,5 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Unable to load leaderboard." }, { status: 500 });
   }
 }
+
 
