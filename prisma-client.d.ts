@@ -78,7 +78,9 @@ type PrismaClientLike = {
   simulationRun: PrismaDelegate<PrismaSimulationRun>;
   shockEvent: PrismaDelegate<PrismaShockEvent>;
   auditLog: PrismaDelegate<PrismaAuditLog>;
-  $transaction<T extends readonly unknown[]>(operations: T): Promise<{
+  $transaction<T extends readonly unknown[]>(
+    operations: T,
+  ): Promise<{
     [K in keyof T]: Awaited<T[K]>;
   }>;
   $connect(): Promise<void>;

@@ -3,6 +3,7 @@ import { simulationRegimes } from "./assetAssumptions";
 import { baseCorrelationMatrix } from "./correlationMatrix";
 import { mean, probabilityOfLossOverThreshold, standardDeviation, valueAtRisk } from "./metrics";
 import { generateYearlyAssetReturns, runMonteCarloSimulation } from "./monteCarlo";
+import type { ShockParameters } from "./shockEngine";
 
 const SAMPLE_SIZE = 20_000;
 
@@ -52,6 +53,39 @@ describe("generateYearlyAssetReturns", () => {
       0.08,
     );
     expect(Math.abs(equityBondCorrelation - baseCorrelationMatrix.equity.bonds)).toBeLessThan(0.08);
+  });
+
+  it("shifts correlated asset returns upward when a positive shock is applied", () => {
+    const shock: ShockParameters = {
+      id: "positive-correlation-shock",
+      title: "Positive Correlation Shock",
+      description: "Raises cross-asset correlations for testing.",
+      meanShift: 0,
+      volatilityMultiplier: 1,
+      correlationShift: 0.15,
+    };
+
+    const baseSeed = 4242;
+    const baseEquitySamples: number[] = [];
+    const baseStartupSamples: number[] = [];
+    const shockedEquitySamples: number[] = [];
+    const shockedStartupSamples: number[] = [];
+
+    for (let i = 0; i < SAMPLE_SIZE; i += 1) {
+      const seed = baseSeed + i;
+      const baselineReturns = generateYearlyAssetReturns(undefined, seed);
+      const shockedReturns = generateYearlyAssetReturns(undefined, seed, shock);
+
+      baseEquitySamples.push(baselineReturns.equity);
+      baseStartupSamples.push(baselineReturns.startups);
+      shockedEquitySamples.push(shockedReturns.equity);
+      shockedStartupSamples.push(shockedReturns.startups);
+    }
+
+    const baseCorrelationValue = correlation(baseEquitySamples, baseStartupSamples);
+    const shockedCorrelationValue = correlation(shockedEquitySamples, shockedStartupSamples);
+
+    expect(shockedCorrelationValue).toBeGreaterThan(baseCorrelationValue);
   });
 });
 

@@ -26,13 +26,15 @@ export async function POST(request: Request) {
       userId: user.id,
       allocation: body.allocation as InputJsonValue,
       metrics: body.metrics as InputJsonValue,
-      simulationResults: body.simulationResults == null ? DbNull : (body.simulationResults as InputJsonValue),
+      simulationResults:
+        body.simulationResults == null ? DbNull : (body.simulationResults as InputJsonValue),
       simulationSeed:
         typeof body.simulationSeed === "number" && Number.isInteger(body.simulationSeed)
           ? body.simulationSeed
           : null,
       simulationMode: typeof body.simulationMode === "string" ? body.simulationMode : null,
-      simulationShock: body.simulationShock == null ? DbNull : (body.simulationShock as InputJsonValue),
+      simulationShock:
+        body.simulationShock == null ? DbNull : (body.simulationShock as InputJsonValue),
     };
 
     const strategy = await prisma.strategy.create({
@@ -120,6 +122,3 @@ export async function DELETE(request: Request) {
     return NextResponse.json({ error: "Unable to delete strategy." }, { status: 500 });
   }
 }
-
-
-

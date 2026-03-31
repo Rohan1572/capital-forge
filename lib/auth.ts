@@ -1,4 +1,4 @@
-import crypto from "crypto";
+import crypto from "node:crypto";
 import { prisma } from "@/lib/prisma";
 
 export type AuthUser = Pick<PrismaUser, "id" | "email" | "name" | "createdAt">;
@@ -45,7 +45,11 @@ export async function verifyPassword(password: string, storedHash: string) {
   return crypto.timingSafeEqual(storedBuffer, derivedKey);
 }
 
-export async function createUser(payload: { email: string; password: string; name?: string }): Promise<AuthUser> {
+export async function createUser(payload: {
+  email: string;
+  password: string;
+  name?: string;
+}): Promise<AuthUser> {
   const passwordHash = await hashPassword(payload.password);
 
   return prisma.user.create({
@@ -57,7 +61,10 @@ export async function createUser(payload: { email: string; password: string; nam
   });
 }
 
-export async function verifyUserCredentials(email: string, password: string): Promise<AuthUser | null> {
+export async function verifyUserCredentials(
+  email: string,
+  password: string,
+): Promise<AuthUser | null> {
   const user = await prisma.user.findUnique({ where: { email } });
   if (!user) return null;
 

@@ -100,7 +100,9 @@ function normalizeMetrics(metrics: unknown): StrategyMetrics {
 }
 
 function normalizeAllocation(allocation: unknown): Record<string, unknown> {
-  return allocation && typeof allocation === "object" ? (allocation as Record<string, unknown>) : {};
+  return allocation && typeof allocation === "object"
+    ? (allocation as Record<string, unknown>)
+    : {};
 }
 
 export async function GET(request: Request) {
@@ -141,7 +143,9 @@ export async function GET(request: Request) {
       select: { id: true, name: true, email: true },
     });
 
-    const usersById = new Map<string, UserSummary>(users.map((user: UserSummary) => [user.id, user] as const));
+    const usersById = new Map<string, UserSummary>(
+      users.map((user: UserSummary) => [user.id, user] as const),
+    );
 
     const entries: LeaderboardEntry[] = typedStrategies.map((strategy) => {
       const user = usersById.get(strategy.userId);

@@ -10,7 +10,11 @@ import {
   clampCorrelation,
   type CorrelationMatrix,
 } from "@/lib/correlationMatrix";
-import { applyShockToAssumptions, type ShockParameters } from "@/lib/shockEngine";
+import {
+  applyShockToAssumptions,
+  applyShockToCorrelation,
+  type ShockParameters,
+} from "@/lib/shockEngine";
 
 export type Allocation = {
   equity: number;
@@ -77,6 +81,15 @@ function choleskyDecomposition(matrix: number[][]): number[][] {
 const baseCorrelationArray = buildCorrelationArray(baseCorrelationMatrix);
 const baseCholesky = choleskyDecomposition(baseCorrelationArray);
 
+function getCholeskyForShock(shock?: ShockParameters): number[][] {
+  if (!shock) {
+    return baseCholesky;
+  }
+
+  const shockedCorrelation = applyShockToCorrelation(baseCorrelationMatrix, shock);
+  return choleskyDecomposition(buildCorrelationArray(shockedCorrelation));
+}
+
 type RandomSource = () => number;
 
 function createSeededRandom(seed: number): RandomSource {
@@ -111,7 +124,7 @@ function sampleStandardNormal(random: RandomSource): number {
   while (u === 0) u = nextRandomValue(random);
   while (v === 0) v = nextRandomValue(random);
 
-  return Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2.0 * Math.PI * v);
+  return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
 }
 
 function generateCorrelatedStandardNormals(cholesky: number[][], random: RandomSource): number[] {
@@ -160,10 +173,11 @@ export function generateAssetYearlyReturn(
 export function generateYearlyAssetReturns(
   assumptions: AssetReturnAssumptions = assetReturnAssumptions,
   seed?: number,
+  shock?: ShockParameters,
 ): Record<AssetKey, number> {
   const { means, volatilities } = buildAssumptionArrays(assumptions);
   const random = resolveRandomSource(seed);
-  const samples = generateCorrelatedStandardNormals(baseCholesky, random);
+  const samples = generateCorrelatedStandardNormals(getCholeskyForShock(shock), random);
 
   return assetKeys.reduce<Record<AssetKey, number>>(
     (returns, key, index) => {
@@ -213,6 +227,7 @@ export function runMonteCarloSimulation(
   assumptions: AssetReturnAssumptions = assetReturnAssumptions,
   regimes: SimulationRegimes = simulationRegimes,
   seed?: number,
+  shock?: ShockParameters,
 ): number[] {
   const weights = normalizeAllocation(allocation);
   const weightArray = new Array<number>(assetKeys.length);
@@ -221,6 +236,7 @@ export function runMonteCarloSimulation(
   const crashProbability = Math.min(Math.max(crashConfig.probability, 0), 1);
   const crashVolatilityMultiplier = Math.max(crashConfig.volatilityMultiplier, 0);
   const crashShocks = crashConfig.shocks;
+  const cholesky = getCholeskyForShock(shock);
 
   for (let i = 0; i < assetKeys.length; i += 1) {
     weightArray[i] = weights[assetKeys[i]];
@@ -232,7 +248,7 @@ export function runMonteCarloSimulation(
   for (let iteration = 0; iteration < MONTE_CARLO_ITERATIONS; iteration += 1) {
     let portfolioReturn = 0;
     const isCrash = random() < crashProbability;
-    const samples = generateCorrelatedStandardNormals(baseCholesky, random);
+    const samples = generateCorrelatedStandardNormals(cholesky, random);
 
     for (let assetIndex = 0; assetIndex < assetKeys.length; assetIndex += 1) {
       const assetKey = assetKeys[assetIndex];
@@ -260,5 +276,5 @@ export function runMonteCarloSimulationWithShock(
   seed?: number,
 ): number[] {
   const shockedAssumptions = applyShockToAssumptions(baseAssumptions, shock);
-  return runMonteCarloSimulation(allocation, shockedAssumptions, regimes, seed);
+  return runMonteCarloSimulation(allocation, shockedAssumptions, regimes, seed, shock);
 }
