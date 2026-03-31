@@ -1,5 +1,9 @@
 import { DbNull, type InputJsonValue } from "@prisma/client/runtime/client";
 import { NextResponse } from "next/server";
+import {
+  SIMULATION_ASSUMPTIONS_VERSION,
+  buildSimulationAssumptionsSnapshot,
+} from "@/lib/simulationAudit";
 import { prisma } from "@/lib/prisma";
 import { getSessionUser } from "@/lib/session";
 
@@ -13,6 +17,11 @@ export async function POST(request: Request) {
     const body = (await request.json()) as {
       allocation?: unknown;
       metrics?: unknown;
+      assumptionsVersion?: unknown;
+      assumptions?: unknown;
+      seed?: unknown;
+      shockId?: unknown;
+      shockModifiers?: unknown;
       simulationResults?: unknown;
       simulationSeed?: unknown;
       simulationMode?: unknown;
@@ -22,19 +31,39 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "allocation and metrics are required" }, { status: 400 });
     }
 
+    const seed =
+      typeof body.seed === "number" && Number.isInteger(body.seed)
+        ? body.seed
+        : typeof body.simulationSeed === "number" && Number.isInteger(body.simulationSeed)
+          ? body.simulationSeed
+          : null;
+    const shockId =
+      typeof body.shockId === "string" && body.shockId.trim() ? body.shockId.trim() : null;
+    const assumptionsVersion =
+      typeof body.assumptionsVersion === "string" && body.assumptionsVersion.trim()
+        ? body.assumptionsVersion.trim()
+        : SIMULATION_ASSUMPTIONS_VERSION;
+    const assumptions =
+      body.assumptions == null ? buildSimulationAssumptionsSnapshot() : body.assumptions;
+    const shockModifiers =
+      body.shockModifiers == null ? DbNull : (body.shockModifiers as InputJsonValue);
+    const simulationShock =
+      body.simulationShock == null ? DbNull : (body.simulationShock as InputJsonValue);
+
     const strategyData = {
       userId: user.id,
       allocation: body.allocation as InputJsonValue,
       metrics: body.metrics as InputJsonValue,
+      assumptionsVersion,
+      assumptions: assumptions as InputJsonValue,
+      seed,
+      shockId,
+      shockModifiers,
       simulationResults:
         body.simulationResults == null ? DbNull : (body.simulationResults as InputJsonValue),
-      simulationSeed:
-        typeof body.simulationSeed === "number" && Number.isInteger(body.simulationSeed)
-          ? body.simulationSeed
-          : null,
+      simulationSeed: seed,
       simulationMode: typeof body.simulationMode === "string" ? body.simulationMode : null,
-      simulationShock:
-        body.simulationShock == null ? DbNull : (body.simulationShock as InputJsonValue),
+      simulationShock,
     };
 
     const strategy = await prisma.strategy.create({
@@ -49,10 +78,10 @@ export async function POST(request: Request) {
           strategyId: strategy.id,
           allocation: body.allocation,
           metrics: body.metrics,
-          simulationSeed:
-            typeof body.simulationSeed === "number" && Number.isInteger(body.simulationSeed)
-              ? body.simulationSeed
-              : null,
+          assumptionsVersion,
+          seed,
+          shockId,
+          shockModifiers: body.shockModifiers ?? null,
           simulationMode: typeof body.simulationMode === "string" ? body.simulationMode : null,
         },
       },

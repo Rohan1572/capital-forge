@@ -10,6 +10,10 @@ import { MetricLabel } from "@/components/MetricLabel";
 import { SimulationChart } from "@/components/SimulationChart";
 import { getSessionUser } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
+import {
+  parseShockModifiersSnapshot,
+  parseSimulationAssumptionsSnapshot,
+} from "@/lib/simulationAudit";
 
 type StrategyPageProps = {
   params: Promise<{ id: string }>;
@@ -59,40 +63,7 @@ function parseSimulationResults(value: unknown): number[] | null {
 }
 
 function parseShockSnapshot(value: unknown): ShockParameters | null {
-  if (!value || typeof value !== "object") return null;
-
-  const record = value as Record<string, unknown>;
-  if (
-    typeof record.id !== "string" ||
-    typeof record.title !== "string" ||
-    typeof record.description !== "string" ||
-    typeof record.meanShift !== "number" ||
-    typeof record.volatilityMultiplier !== "number" ||
-    typeof record.correlationShift !== "number"
-  ) {
-    return null;
-  }
-
-  return {
-    id: record.id,
-    title: record.title,
-    description: record.description,
-    meanShift: record.meanShift,
-    volatilityMultiplier: record.volatilityMultiplier,
-    correlationShift: record.correlationShift,
-    meanShiftByAsset:
-      record.meanShiftByAsset && typeof record.meanShiftByAsset === "object"
-        ? (record.meanShiftByAsset as ShockParameters["meanShiftByAsset"])
-        : undefined,
-    volatilityMultiplierByAsset:
-      record.volatilityMultiplierByAsset && typeof record.volatilityMultiplierByAsset === "object"
-        ? (record.volatilityMultiplierByAsset as ShockParameters["volatilityMultiplierByAsset"])
-        : undefined,
-    correlationShiftByAsset:
-      record.correlationShiftByAsset && typeof record.correlationShiftByAsset === "object"
-        ? (record.correlationShiftByAsset as ShockParameters["correlationShiftByAsset"])
-        : undefined,
-  };
+  return parseShockModifiersSnapshot(value);
 }
 
 async function loadAiRiskSummary(allocation: Allocation, metrics: SimulationMetrics) {
@@ -130,6 +101,11 @@ async function loadAiRiskSummary(allocation: Allocation, metrics: SimulationMetr
 
 function loadReplaySeries(strategy: {
   allocation: unknown;
+  assumptionsVersion?: string | null;
+  assumptions?: unknown;
+  seed?: number | null;
+  shockId?: string | null;
+  shockModifiers?: unknown;
   simulationResults?: unknown;
   simulationSeed?: number | null;
   simulationMode?: string | null;
@@ -144,20 +120,45 @@ function loadReplaySeries(strategy: {
   }
 
   const allocation = strategy.allocation as Allocation;
-  const seed = typeof strategy.simulationSeed === "number" ? strategy.simulationSeed : null;
+  const assumptions = parseSimulationAssumptionsSnapshot(strategy.assumptions);
+  const seed =
+    typeof strategy.seed === "number"
+      ? strategy.seed
+      : typeof strategy.simulationSeed === "number"
+        ? strategy.simulationSeed
+        : null;
   if (seed === null) return null;
 
-  const shock = parseShockSnapshot(strategy.simulationShock);
-  if (strategy.simulationMode === "shocked" && shock) {
+  const shock = parseShockSnapshot(strategy.shockModifiers ?? strategy.simulationShock);
+  const assumptionsLabel = strategy.assumptionsVersion ?? "stored assumptions";
+  const canUseShock =
+    Boolean(shock) &&
+    (strategy.shockId !== null ||
+      strategy.simulationMode === "shocked" ||
+      strategy.shockModifiers != null ||
+      strategy.simulationShock != null);
+
+  if (canUseShock && shock) {
     return {
-      values: runMonteCarloSimulationWithShock(allocation, shock, undefined, undefined, seed),
-      sourceLabel: "Replayed from stored seed with shock",
+      values: runMonteCarloSimulationWithShock(
+        allocation,
+        shock,
+        assumptions?.assetReturnAssumptions,
+        assumptions?.simulationRegimes,
+        seed,
+      ),
+      sourceLabel: `Replayed from ${assumptionsLabel} with shock`,
     };
   }
 
   return {
-    values: runMonteCarloSimulation(allocation, undefined, undefined, seed),
-    sourceLabel: "Replayed from stored seed",
+    values: runMonteCarloSimulation(
+      allocation,
+      assumptions?.assetReturnAssumptions,
+      assumptions?.simulationRegimes,
+      seed,
+    ),
+    sourceLabel: `Replayed from ${assumptionsLabel}`,
   };
 }
 
@@ -187,14 +188,7 @@ export default async function StrategyPage({ params }: StrategyPageProps) {
   const allocation = strategy.allocation as Allocation;
   const metrics = strategy.metrics as SimulationMetrics;
   const aiRiskSummary = await loadAiRiskSummary(allocation, metrics);
-  const replaySeries = loadReplaySeries(
-    strategy as typeof strategy & {
-      simulationResults?: unknown;
-      simulationSeed?: number | null;
-      simulationMode?: string | null;
-      simulationShock?: unknown;
-    },
-  );
+  const replaySeries = loadReplaySeries(strategy);
 
   return (
     <>

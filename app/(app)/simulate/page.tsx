@@ -20,6 +20,7 @@ import { computeSimulationMetrics, type SimulationMetrics } from "@/lib/metrics"
 import { assetReturnAssumptions, simulationRegimes } from "@/lib/assetAssumptions";
 import { baseCorrelationMatrix } from "@/lib/correlationMatrix";
 import type { DebateAgentCall } from "@/lib/debateEngine";
+import { buildSimulationAuditSnapshot } from "@/lib/simulationAudit";
 import type { ShockParameters } from "@/lib/shockEngine";
 
 const simulationCache = new TTLCache<number[]>({ ttlMs: 2 * 60 * 1000, maxSize: 20 });
@@ -466,6 +467,30 @@ export default function SimulatePage() {
       const metrics = selectedScenario.metrics;
 
       const [aiRiskResponse, aiDebateResponse, saveResponse] = await Promise.all([
+        (() => {
+          const auditSnapshot = buildSimulationAuditSnapshot(
+            runSeed,
+            shockedScenario && shockForRun ? shockForRun : null,
+          );
+          return fetch("/api/strategies", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            credentials: "include",
+            body: JSON.stringify({
+              allocation,
+              metrics,
+              assumptionsVersion: auditSnapshot.assumptionsVersion,
+              assumptions: auditSnapshot.assumptions,
+              seed: auditSnapshot.seed,
+              shockId: auditSnapshot.shockId,
+              shockModifiers: auditSnapshot.shockModifiers,
+              simulationResults: selectedScenario.outcomes,
+              simulationSeed: runSeed,
+              simulationMode: shockedScenario ? "shocked" : "baseline",
+              simulationShock: shockedScenario && shockForRun ? shockForRun : null,
+            }),
+          });
+        })(),
         fetch("/api/ai/risk", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -475,19 +500,6 @@ export default function SimulatePage() {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ allocation, metrics }),
-        }),
-        fetch("/api/strategies", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          credentials: "include",
-          body: JSON.stringify({
-            allocation,
-            metrics,
-            simulationResults: selectedScenario.outcomes,
-            simulationSeed: runSeed,
-            simulationMode: shockedScenario ? "shocked" : "baseline",
-            simulationShock: shockedScenario && shockForRun ? shockForRun : null,
-          }),
         }),
       ]);
 

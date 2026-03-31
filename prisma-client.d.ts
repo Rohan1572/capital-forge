@@ -37,6 +37,11 @@ type PrismaStrategy = PrismaModelRecord & {
   userId: string;
   allocation: unknown;
   metrics: unknown;
+  assumptionsVersion: string | null;
+  assumptions: unknown;
+  seed: number | null;
+  shockId: string | null;
+  shockModifiers: unknown;
   simulationResults: unknown;
   simulationSeed: number | null;
   simulationMode: string | null;
@@ -47,7 +52,11 @@ type PrismaStrategy = PrismaModelRecord & {
 type PrismaSimulationRun = PrismaModelRecord & {
   name: string;
   status: string;
+  assumptionsVersion: string | null;
   assumptions: unknown;
+  seed: number | null;
+  shockId: string | null;
+  shockModifiers: unknown;
   results: unknown;
   createdAt: Date;
   updatedAt: Date;
