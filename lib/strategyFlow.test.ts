@@ -60,7 +60,7 @@ function compareStrategies(
     typeof b.metrics.valueAtRisk5 === "number" ? b.metrics.valueAtRisk5 : Number.POSITIVE_INFINITY;
   if (varA !== varB) return varA - varB;
 
-  return a.createdAt.localeCompare(b.createdAt);
+  return a.createdAt.getTime() - b.createdAt.getTime();
 }
 
 function rankStrategies(

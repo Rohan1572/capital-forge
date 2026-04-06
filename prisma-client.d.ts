@@ -13,6 +13,7 @@ type PrismaDelegate<TModel extends PrismaModelRecord> = {
   findFirst(args: unknown): Promise<PrismaFindResult<TModel>>;
   findMany(args: unknown): Promise<PrismaFindManyResult<TModel>>;
   update(args: unknown): Promise<PrismaCreateResult<TModel>>;
+  upsert(args: unknown): Promise<PrismaCreateResult<TModel>>;
   updateMany(args: unknown): Promise<{ count: number }>;
   delete(args: unknown): Promise<PrismaCreateResult<TModel>>;
   deleteMany(args: unknown): Promise<{ count: number }>;
@@ -89,6 +90,13 @@ type PrismaAuditLog = PrismaModelRecord & {
   createdAt: Date;
 };
 
+type PrismaLeaderboardSeason = PrismaModelRecord & {
+  scope: string;
+  activeMonth: string;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
 type PrismaClientLike = {
   user: PrismaDelegate<PrismaUser>;
   session: PrismaDelegate<PrismaSession>;
@@ -97,6 +105,7 @@ type PrismaClientLike = {
   simulationRun: PrismaDelegate<PrismaSimulationRun>;
   shockEvent: PrismaDelegate<PrismaShockEvent>;
   auditLog: PrismaDelegate<PrismaAuditLog>;
+  leaderboardSeason: PrismaDelegate<PrismaLeaderboardSeason>;
   $transaction<T extends readonly unknown[]>(
     operations: T,
   ): Promise<{

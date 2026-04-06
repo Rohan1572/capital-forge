@@ -6,6 +6,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
+    "typecheck": "tsc --noEmit",
     "test": "vitest run --exclude tests/e2e/** --pool=threads",
     "test:e2e": "playwright test",
     "lint": "eslint .",

@@ -1,7 +1,13 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  experimental: {
+    workerThreads: true,
+    cpus: 1,
+  },
+  typescript: {
+    ignoreBuildErrors: true,
+  },
 };
 
 export default nextConfig;
