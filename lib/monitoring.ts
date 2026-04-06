@@ -180,10 +180,13 @@ export function evaluateMonitoringSummary(
     );
   }
 
+  const hasCriticalAlert = alerts.some((alert) => alert.severity === "critical");
+  const hasAnyAlert = alerts.length > 0;
+
   let status: MonitoringReportStatus = "healthy";
-  if (alerts.some((alert) => alert.severity === "critical")) {
+  if (hasCriticalAlert) {
     status = "critical";
-  } else if (alerts.length > 0) {
+  } else if (hasAnyAlert) {
     status = "warning";
   }
 
