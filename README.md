@@ -32,6 +32,18 @@ To learn more about Next.js, take a look at the following resources:
 - [Privacy and data handling policy](docs/privacy-and-data-handling.md)
 - [Launch operations runbook](docs/launch-operations-runbook.md)
 
+## Code Review Graph
+
+Use these commands to build or inspect the local code-review graph:
+
+```bash
+npm run graph:build
+npm run graph:status
+npm run graph:serve
+```
+
+The graph database lives in [`.code-review-graph/graph.db`](./.code-review-graph/graph.db) and is excluded from version control.
+
 You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
 
 ## Deploy on Vercel
