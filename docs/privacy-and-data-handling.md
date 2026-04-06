@@ -11,9 +11,17 @@
 ## Retention Rules
 
 - Password hashes are retained until the account is deleted.
-- Session records expire automatically and should be deleted when no longer valid.
-- Simulation history and AI logs are retained for product auditability and trend analysis.
+- Session records expire automatically and are purged within 24 hours of expiry.
+- AI response logs are retained for 90 days for auditability, safety review, and cost monitoring.
+- Simulation history is retained for 180 days for product auditability and trend analysis.
+- Operational audit logs are retained for 365 days and only store the minimum metadata needed to explain the action that occurred.
 - When deleting a strategy, related access should be removed from active views, but historical audit records may remain for operational integrity unless a separate deletion request applies.
+
+## Retention and Support Deletion
+
+- Automated retention runs should delete expired sessions, stale AI response logs, stale simulation records, and audit logs that have passed the operational retention window.
+- Support or admin deletions should use the explicit retention endpoint and should remove user- or strategy-linked sessions, simulation records, and AI logs while preserving a minimal audit entry for the deletion request.
+- Support tooling should never export passwords, session tokens, or raw prompt text by default.
 
 ## Data Handling Rules
 
