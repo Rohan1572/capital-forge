@@ -51,4 +51,31 @@ if (
   throw new Error("Monitoring route returned an invalid aiResponseCountByKind");
 }
 
-console.log("Monitoring route check passed.");
+if (!data.status || typeof data.status !== "string") {
+  throw new Error("Monitoring route returned an invalid status");
+}
+
+if (!Array.isArray(data.alerts)) {
+  throw new TypeError("Monitoring route returned an invalid alerts list");
+}
+
+const criticalAlerts = data.alerts.filter((alert) => alert?.severity === "critical");
+const warningAlerts = data.alerts.filter((alert) => alert?.severity === "warning");
+
+if (warningAlerts.length > 0) {
+  console.warn(
+    `Monitoring warning: ${warningAlerts
+      .map((alert) => `${alert.title ?? alert.key}: ${alert.message ?? "no message"}`)
+      .join(" | ")}`,
+  );
+}
+
+if (data.status === "critical" || criticalAlerts.length > 0) {
+  throw new Error(
+    `Monitoring route reported critical alerts: ${criticalAlerts
+      .map((alert) => `${alert.title ?? alert.key}: ${alert.message ?? "no message"}`)
+      .join(" | ")}`,
+  );
+}
+
+console.log(`Monitoring route check passed with status ${data.status}.`);
