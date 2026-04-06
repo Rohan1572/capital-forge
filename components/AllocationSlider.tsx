@@ -1,12 +1,12 @@
 import type { KeyboardEvent } from "react";
 
-type AllocationSliderProps = {
+type AllocationSliderProps = Readonly<{
   label: string;
   value: number;
   locked: boolean;
   onChange: (value: number) => void;
   onToggleLock: () => void;
-};
+}>;
 
 function clampValue(value: number) {
   if (Number.isNaN(value)) return 0;

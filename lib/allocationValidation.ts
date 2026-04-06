@@ -24,9 +24,7 @@ export function validateAllocation(allocation: unknown): AllocationValidationRes
     return { ok: false, error: "allocation must be an object." };
   }
 
-  const missingKeys = ALLOCATION_KEYS.filter(
-    (key) => !Object.prototype.hasOwnProperty.call(allocation, key),
-  );
+  const missingKeys = ALLOCATION_KEYS.filter((key) => !Object.hasOwn(allocation, key));
   if (missingKeys.length > 0) {
     return {
       ok: false,

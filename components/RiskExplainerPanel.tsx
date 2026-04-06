@@ -4,7 +4,7 @@ import { useMemo, type ReactNode } from "react";
 import { AiDisclaimerBanner } from "@/components/AiDisclaimerBanner";
 import { AI_DISCLOSURE_TEXT } from "@/lib/aiSafety";
 
-type RiskExplainerPanelProps = {
+type RiskExplainerPanelProps = Readonly<{
   markdown: string;
   meta?: {
     model: string;
@@ -19,7 +19,7 @@ type RiskExplainerPanelProps = {
     };
     estimatedCostUsd?: number | null;
   };
-};
+}>;
 
 const warningKeywords = ["warning", "risk", "drawdown", "var", "tail", "loss", "downside"];
 

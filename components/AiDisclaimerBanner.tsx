@@ -1,6 +1,6 @@
-type AiDisclaimerBannerProps = {
+type AiDisclaimerBannerProps = Readonly<{
   message: string;
-};
+}>;
 
 export function AiDisclaimerBanner({ message }: AiDisclaimerBannerProps) {
   return (

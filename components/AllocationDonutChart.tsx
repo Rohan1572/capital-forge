@@ -1,7 +1,8 @@
 "use client";
 
+import { useEffect, useRef, useState } from "react";
 import { type ValueType } from "recharts/types/component/DefaultTooltipContent";
-import { Cell, Legend, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
+import { Legend, Pie, PieChart, Tooltip } from "recharts";
 
 export type AllocationChartEntry = {
   label: string;
@@ -10,18 +11,71 @@ export type AllocationChartEntry = {
   locked?: boolean;
 };
 
-type AllocationDonutChartProps = {
-  entries: AllocationChartEntry[];
-};
+type AllocationDonutChartProps = Readonly<{
+  entries: readonly AllocationChartEntry[];
+}>;
 
 const CHART_COLORS = ["#f59e0b", "#60a5fa", "#34d399", "#f97316", "#a78bfa", "#f472b6"];
+
+type ChartSize = {
+  width: number;
+  height: number;
+};
 
 function formatPercent(value: number) {
   return `${value.toFixed(1)}%`;
 }
 
+function formatTooltipValue(value: ValueType | undefined) {
+  if (typeof value === "number") {
+    return `${value.toFixed(1)}%`;
+  }
+
+  if (Array.isArray(value)) {
+    return value.join(", ");
+  }
+
+  return value;
+}
+
+function useChartSize<T extends HTMLElement>() {
+  const containerRef = useRef<T | null>(null);
+  const [size, setSize] = useState<ChartSize | null>(null);
+
+  useEffect(() => {
+    const node = containerRef.current;
+    if (!node) return;
+
+    const updateSize = () => {
+      const rect = node.getBoundingClientRect();
+      if (rect.width > 0 && rect.height > 0) {
+        setSize({
+          width: Math.floor(rect.width),
+          height: Math.floor(rect.height),
+        });
+      }
+    };
+
+    updateSize();
+
+    const observer = new ResizeObserver(() => {
+      updateSize();
+    });
+    observer.observe(node);
+
+    return () => observer.disconnect();
+  }, []);
+
+  return [containerRef, size] as const;
+}
+
 export function AllocationDonutChart({ entries }: AllocationDonutChartProps) {
   const total = entries.reduce((sum, entry) => sum + entry.value, 0);
+  const [chartRef, chartSize] = useChartSize<HTMLDivElement>();
+  const chartData = entries.map((entry, index) => ({
+    ...entry,
+    fill: entry.color ?? CHART_COLORS[index % CHART_COLORS.length],
+  }));
 
   return (
     <section className="rounded-xl border border-zinc-800 bg-zinc-950/60 p-4">
@@ -37,17 +91,11 @@ export function AllocationDonutChart({ entries }: AllocationDonutChartProps) {
         </span>
       </div>
 
-      <div className="mt-4 h-[280px] w-full">
-        <ResponsiveContainer width="100%" height="100%">
-          <PieChart>
+      <div ref={chartRef} className="mt-4 h-[280px] w-full">
+        {chartSize ? (
+          <PieChart width={chartSize.width} height={chartSize.height}>
             <Tooltip
-              formatter={(value: ValueType | undefined) =>
-                typeof value === "number"
-                  ? `${value.toFixed(1)}%`
-                  : Array.isArray(value)
-                    ? value.join(", ")
-                    : value
-              }
+              formatter={formatTooltipValue}
               contentStyle={{
                 background: "#09090b",
                 borderColor: "#3f3f46",
@@ -60,7 +108,7 @@ export function AllocationDonutChart({ entries }: AllocationDonutChartProps) {
               wrapperStyle={{ color: "#d4d4d8", fontSize: 12 }}
             />
             <Pie
-              data={entries}
+              data={chartData}
               dataKey="value"
               nameKey="label"
               innerRadius={64}
@@ -68,16 +116,9 @@ export function AllocationDonutChart({ entries }: AllocationDonutChartProps) {
               paddingAngle={2}
               stroke="#09090b"
               strokeWidth={2}
-            >
-              {entries.map((entry, index) => (
-                <Cell
-                  key={entry.label}
-                  fill={entry.color ?? CHART_COLORS[index % CHART_COLORS.length]}
-                />
-              ))}
-            </Pie>
+            ></Pie>
           </PieChart>
-        </ResponsiveContainer>
+        ) : null}
       </div>
 
       <div className="mt-4 grid gap-2">

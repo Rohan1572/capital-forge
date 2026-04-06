@@ -101,8 +101,8 @@ const glossarySections = [
 ];
 
 function getStoredSeenFlag() {
-  if (typeof window === "undefined") return true;
-  return window.localStorage.getItem(STORAGE_KEY) === "true";
+  if (globalThis.window === undefined) return true;
+  return globalThis.window.localStorage.getItem(STORAGE_KEY) === "true";
 }
 
 export function AppGuide() {
@@ -114,18 +114,18 @@ export function AppGuide() {
 
   useEffect(() => {
     const seen = getStoredSeenFlag();
-    const frame = window.requestAnimationFrame(() => {
+    const frame = globalThis.window.requestAnimationFrame(() => {
       setHasSeenOnboarding(seen);
       setIsOnboardingOpen(!seen);
       setIsReady(true);
     });
 
-    return () => window.cancelAnimationFrame(frame);
+    return () => globalThis.window.cancelAnimationFrame(frame);
   }, []);
 
   useEffect(() => {
-    if (typeof window === "undefined" || !isReady) return;
-    window.localStorage.setItem(STORAGE_KEY, hasSeenOnboarding ? "true" : "false");
+    if (globalThis.window === undefined || !isReady) return;
+    globalThis.window.localStorage.setItem(STORAGE_KEY, hasSeenOnboarding ? "true" : "false");
   }, [hasSeenOnboarding, isReady]);
 
   const currentStep = useMemo(() => onboardingSteps[stepIndex], [stepIndex]);
@@ -209,9 +209,9 @@ export function AppGuide() {
 
             <div className="mt-5 flex flex-wrap items-center justify-between gap-3">
               <div className="flex gap-2">
-                {onboardingSteps.map((_, index) => (
+                {onboardingSteps.map((step, index) => (
                   <span
-                    key={index}
+                    key={step.title}
                     className={`h-2 w-8 rounded-full transition ${
                       index === stepIndex ? "bg-amber-400" : "bg-zinc-700"
                     }`}

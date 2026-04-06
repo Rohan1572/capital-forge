@@ -9,10 +9,10 @@ type ShellUser = {
   email: string;
 } | null;
 
-type AppShellProps = {
+type AppShellProps = Readonly<{
   user: ShellUser;
   children: ReactNode;
-};
+}>;
 
 function getUserLabel(user: ShellUser) {
   if (!user) return "Guest";

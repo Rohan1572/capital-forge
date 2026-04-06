@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type SyntheticEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
@@ -9,15 +9,21 @@ export default function RegisterPage() {
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+  function handleSubmit(event: SyntheticEvent<HTMLFormElement>) {
     event.preventDefault();
     setError(null);
     setIsSubmitting(true);
+    void submitRegistration(event.currentTarget);
+  }
 
-    const formData = new FormData(event.currentTarget);
-    const name = String(formData.get("name") ?? "");
-    const email = String(formData.get("email") ?? "");
-    const password = String(formData.get("password") ?? "");
+  async function submitRegistration(form: HTMLFormElement) {
+    const formData = new FormData(form);
+    const nameValue = formData.get("name");
+    const emailValue = formData.get("email");
+    const passwordValue = formData.get("password");
+    const name = typeof nameValue === "string" ? nameValue : "";
+    const email = typeof emailValue === "string" ? emailValue : "";
+    const password = typeof passwordValue === "string" ? passwordValue : "";
 
     const response = await fetch("/api/auth/register", {
       method: "POST",
@@ -45,7 +51,7 @@ export default function RegisterPage() {
 
       <form onSubmit={handleSubmit} className="space-y-4">
         <label className="block text-sm">
-          Name
+          <span>Name</span>
           <input
             type="text"
             name="name"
@@ -54,7 +60,7 @@ export default function RegisterPage() {
           />
         </label>
         <label className="block text-sm">
-          Email
+          <span>Email</span>
           <input
             type="email"
             name="email"
@@ -64,7 +70,7 @@ export default function RegisterPage() {
           />
         </label>
         <label className="block text-sm">
-          Password
+          <span>Password</span>
           <input
             type="password"
             name="password"
@@ -90,8 +96,8 @@ export default function RegisterPage() {
       </form>
 
       <p className="text-sm text-zinc-400">
-        Already have an account?{" "}
-        <Link href="/login" className="text-zinc-100 hover:text-white">
+        Already have an account?
+        <Link href="/login" className="ml-1 text-zinc-100 hover:text-white">
           Sign in
         </Link>
       </p>

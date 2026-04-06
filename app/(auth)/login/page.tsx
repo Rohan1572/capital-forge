@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type SyntheticEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
@@ -9,14 +9,19 @@ export default function LoginPage() {
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+  function handleSubmit(event: SyntheticEvent<HTMLFormElement>) {
     event.preventDefault();
     setError(null);
     setIsSubmitting(true);
+    void submitLogin(event.currentTarget);
+  }
 
-    const formData = new FormData(event.currentTarget);
-    const email = String(formData.get("email") ?? "");
-    const password = String(formData.get("password") ?? "");
+  async function submitLogin(form: HTMLFormElement) {
+    const formData = new FormData(form);
+    const emailValue = formData.get("email");
+    const passwordValue = formData.get("password");
+    const email = typeof emailValue === "string" ? emailValue : "";
+    const password = typeof passwordValue === "string" ? passwordValue : "";
 
     const response = await fetch("/api/auth/login", {
       method: "POST",
@@ -44,7 +49,7 @@ export default function LoginPage() {
 
       <form onSubmit={handleSubmit} className="space-y-4">
         <label className="block text-sm">
-          Email
+          <span>Email</span>
           <input
             type="email"
             name="email"
@@ -53,7 +58,7 @@ export default function LoginPage() {
           />
         </label>
         <label className="block text-sm">
-          Password
+          <span>Password</span>
           <input
             type="password"
             name="password"
@@ -79,8 +84,8 @@ export default function LoginPage() {
       </form>
 
       <p className="text-sm text-zinc-400">
-        New here?{" "}
-        <Link href="/register" className="text-zinc-100 hover:text-white">
+        New here?
+        <Link href="/register" className="ml-1 text-zinc-100 hover:text-white">
           Create an account
         </Link>
       </p>

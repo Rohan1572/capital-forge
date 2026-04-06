@@ -83,15 +83,15 @@ function buildShockSchema() {
 
 function parseShockPayload(raw: unknown): GeneratedShock {
   if (!raw || typeof raw !== "object") {
-    throw new Error("AI response was not an object.");
+    throw new TypeError("AI response was not an object.");
   }
 
   const record = raw as Record<string, unknown>;
   if (typeof record.title !== "string" || typeof record.description !== "string") {
-    throw new Error("AI response missing title or description.");
+    throw new TypeError("AI response missing title or description.");
   }
   if (!Array.isArray(record.marketImpact)) {
-    throw new Error("AI response missing marketImpact array.");
+    throw new TypeError("AI response missing marketImpact array.");
   }
 
   const marketImpact = record.marketImpact
@@ -99,11 +99,11 @@ function parseShockPayload(raw: unknown): GeneratedShock {
     .filter(Boolean);
 
   if (marketImpact.length < 3) {
-    throw new Error("AI response marketImpact requires at least 3 items.");
+    throw new TypeError("AI response marketImpact requires at least 3 items.");
   }
 
   if (!record.modifiers || typeof record.modifiers !== "object") {
-    throw new Error("AI response missing modifiers.");
+    throw new TypeError("AI response missing modifiers.");
   }
 
   return {
@@ -128,7 +128,7 @@ async function generateShock(context: ShockGenerationContext): Promise<{
 }> {
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) {
-    throw new Error("OPENAI_API_KEY is not configured.");
+    throw new TypeError("OPENAI_API_KEY is not configured.");
   }
 
   const model = process.env.OPENAI_MODEL ?? "gpt-4.1-mini";
@@ -160,7 +160,7 @@ async function generateShock(context: ShockGenerationContext): Promise<{
 
   if (!response.ok) {
     const errorBody = await response.text();
-    throw new Error(`OpenAI shock request failed: ${response.status} ${errorBody}`);
+    throw new TypeError(`OpenAI shock request failed: ${response.status} ${errorBody}`);
   }
 
   const payload = (await response.json()) as {
@@ -180,7 +180,7 @@ async function generateShock(context: ShockGenerationContext): Promise<{
       ?.content?.find((part) => part.type === "output_text")?.text;
 
   if (!outputText) {
-    throw new Error("OpenAI response missing output text.");
+    throw new TypeError("OpenAI response missing output text.");
   }
 
   return {

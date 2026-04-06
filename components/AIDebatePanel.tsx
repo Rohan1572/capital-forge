@@ -4,27 +4,27 @@ import { AI_DISCLOSURE_TEXT } from "@/lib/aiSafety";
 import type { DebateAgentCall } from "@/lib/debateEngine";
 import { parseDebateSections } from "@/lib/debateEngine";
 
-type AIDebatePanelProps = {
-  calls: DebateAgentCall[];
-  meta?: {
+type AIDebatePanelProps = Readonly<{
+  calls: readonly DebateAgentCall[];
+  meta?: Readonly<{
     model: string;
     latencyMs: number;
     cached?: boolean;
     safetyNotice?: string | null;
-    safetyMatchedTerms?: string[];
-    calls?: Array<{
+    safetyMatchedTerms?: readonly string[];
+    calls?: ReadonlyArray<{
       role: DebateAgentCall["role"];
       model: string;
       latencyMs: number;
-      usage?: {
+      usage?: Readonly<{
         inputTokens?: number;
         outputTokens?: number;
         totalTokens?: number;
-      };
+      }>;
     }>;
     estimatedCostUsd?: number | null;
-  };
-};
+  }>;
+}>;
 
 const roleAccent: Record<DebateAgentCall["role"], string> = {
   conservative: "border-amber-500/40 bg-amber-950/30 text-amber-100",
@@ -38,7 +38,7 @@ const roleBadge: Record<DebateAgentCall["role"], string> = {
   risk: "bg-rose-500/20 text-rose-200",
 };
 
-function renderList(items: string[], fallback: string) {
+function renderList(items: readonly string[], fallback: string) {
   if (items.length === 0) {
     return <p className="text-sm text-zinc-300">{fallback}</p>;
   }
@@ -100,7 +100,7 @@ export function AIDebatePanel({ calls, meta }: AIDebatePanelProps) {
       ) : null}
 
       <div className="mt-5 space-y-4">
-        {calls.map((call, index) => {
+        {calls.map((call: DebateAgentCall, index: number) => {
           const profile = DEBATE_AGENT_PROFILES[call.role];
           const sections = parseDebateSections(call.response);
           const callMeta = meta?.calls?.[index];

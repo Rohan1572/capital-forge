@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { type ValueType } from "recharts/types/component/DefaultTooltipContent";
 import {
   Bar,
@@ -9,7 +9,6 @@ import {
   Legend,
   Line,
   LineChart,
-  ResponsiveContainer,
   Tooltip,
   XAxis,
   YAxis,
@@ -31,6 +30,11 @@ type PathPoint = {
   optimistic: number;
   median: number;
   defensive: number;
+};
+
+type ChartSize = {
+  width: number;
+  height: number;
 };
 
 const HISTOGRAM_BINS = 24;
@@ -114,10 +118,43 @@ function formatScenarioTooltipValue(value: ValueType | undefined) {
   return value ?? "N/A";
 }
 
+function useChartSize<T extends HTMLElement>() {
+  const containerRef = useRef<T | null>(null);
+  const [size, setSize] = useState<ChartSize | null>(null);
+
+  useEffect(() => {
+    const node = containerRef.current;
+    if (!node) return;
+
+    const updateSize = () => {
+      const rect = node.getBoundingClientRect();
+      if (rect.width > 0 && rect.height > 0) {
+        setSize({
+          width: Math.floor(rect.width),
+          height: Math.floor(rect.height),
+        });
+      }
+    };
+
+    updateSize();
+
+    const observer = new ResizeObserver(() => {
+      updateSize();
+    });
+    observer.observe(node);
+
+    return () => observer.disconnect();
+  }, []);
+
+  return [containerRef, size] as const;
+}
+
 export function SimulationChart({ values }: SimulationChartProps) {
   const metrics = useMemo(() => computeSimulationMetrics(values), [values]);
   const histogramData = useMemo(() => buildHistogram(values, HISTOGRAM_BINS), [values]);
   const pathData = useMemo(() => buildPathSeries(values, PATH_STEPS), [values]);
+  const [histogramRef, histogramSize] = useChartSize<HTMLDivElement>();
+  const [pathRef, pathSize] = useChartSize<HTMLDivElement>();
 
   return (
     <section className="space-y-6 rounded-xl border border-zinc-800 bg-zinc-900/80 p-6">
@@ -167,9 +204,14 @@ export function SimulationChart({ values }: SimulationChartProps) {
           <p className="mt-1 text-xs text-zinc-500">
             Frequency of simulated one-period portfolio returns.
           </p>
-          <div className="mt-4 h-[300px] w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={histogramData} margin={{ left: 10, right: 10, top: 6, bottom: 10 }}>
+          <div ref={histogramRef} className="mt-4 h-[300px] w-full">
+            {histogramSize ? (
+              <BarChart
+                width={histogramSize.width}
+                height={histogramSize.height}
+                data={histogramData}
+                margin={{ left: 10, right: 10, top: 6, bottom: 10 }}
+              >
                 <CartesianGrid strokeDasharray="3 3" stroke="#27272a" />
                 <XAxis dataKey="range" tick={{ fill: "#a1a1aa", fontSize: 11 }} interval={3} />
                 <YAxis tick={{ fill: "#a1a1aa", fontSize: 11 }} />
@@ -182,7 +224,7 @@ export function SimulationChart({ values }: SimulationChartProps) {
                 />
                 <Bar dataKey="count" fill="#60a5fa" radius={[4, 4, 0, 0]} />
               </BarChart>
-            </ResponsiveContainer>
+            ) : null}
           </div>
         </article>
 
@@ -191,9 +233,14 @@ export function SimulationChart({ values }: SimulationChartProps) {
           <p className="mt-1 text-xs text-zinc-500">
             Compounded optimistic/median/defensive outcomes from percentile returns.
           </p>
-          <div className="mt-4 h-[300px] w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={pathData} margin={{ left: 8, right: 8, top: 6, bottom: 10 }}>
+          <div ref={pathRef} className="mt-4 h-[300px] w-full">
+            {pathSize ? (
+              <LineChart
+                width={pathSize.width}
+                height={pathSize.height}
+                data={pathData}
+                margin={{ left: 8, right: 8, top: 6, bottom: 10 }}
+              >
                 <CartesianGrid strokeDasharray="3 3" stroke="#27272a" />
                 <XAxis dataKey="step" tick={{ fill: "#a1a1aa", fontSize: 11 }} />
                 <YAxis tick={{ fill: "#a1a1aa", fontSize: 11 }} unit="%" />
@@ -222,7 +269,7 @@ export function SimulationChart({ values }: SimulationChartProps) {
                   dot={false}
                 />
               </LineChart>
-            </ResponsiveContainer>
+            ) : null}
           </div>
         </article>
       </div>

@@ -21,7 +21,7 @@ function formatCurrency(value: number) {
   }).format(value);
 }
 
-export function MonitoringWidget({ days = 30 }: { days?: number }) {
+export function MonitoringWidget({ days = 30 }: Readonly<{ days?: number }>) {
   const [summary, setSummary] = useState<MonitoringSummary | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -34,13 +34,13 @@ export function MonitoringWidget({ days = 30 }: { days?: number }) {
           credentials: "include",
         });
 
-        if (!response.ok) {
+        if (response.ok) {
+          const payload = (await response.json()) as { data?: MonitoringSummary };
+          if (active) {
+            setSummary(payload.data ?? null);
+          }
+        } else {
           throw new Error("Failed to load monitoring summary.");
-        }
-
-        const payload = (await response.json()) as { data?: MonitoringSummary };
-        if (active) {
-          setSummary(payload.data ?? null);
         }
       } catch (loadError) {
         console.error("Failed to load monitoring summary", loadError);
@@ -83,9 +83,9 @@ export function MonitoringWidget({ days = 30 }: { days?: number }) {
           <article className="rounded-lg border border-zinc-800 bg-zinc-950/50 p-4">
             <p className="text-xs uppercase tracking-wide text-zinc-500">Simulation Latency</p>
             <p className="mt-2 text-2xl font-semibold text-zinc-100">
-              {summary.averageSimulationLatencyMs !== null
-                ? `${summary.averageSimulationLatencyMs.toFixed(0)} ms`
-                : "No runs"}
+              {summary.averageSimulationLatencyMs === null
+                ? "No runs"
+                : `${summary.averageSimulationLatencyMs.toFixed(0)} ms`}
             </p>
             <p className="mt-1 text-xs text-zinc-500">
               {summary.simulationCount} tracked runs, {summary.totalSimulationLatencyMs ?? 0} ms

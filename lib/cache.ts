@@ -11,9 +11,9 @@ type CacheOptions = {
 };
 
 export class TTLCache<T> {
-  private store = new Map<string, CacheEntry<T>>();
-  private ttlMs: number;
-  private maxSize: number;
+  private readonly store = new Map<string, CacheEntry<T>>();
+  private readonly ttlMs: number;
+  private readonly maxSize: number;
 
   constructor(options: CacheOptions = {}) {
     this.ttlMs = options.ttlMs ?? 5 * 60 * 1000;
@@ -34,8 +34,8 @@ export class TTLCache<T> {
 
   set(key: string, value: T): void {
     if (this.store.size >= this.maxSize) {
-      const oldestKey = this.store.keys().next().value as string | undefined;
-      if (oldestKey) this.store.delete(oldestKey);
+      const oldestKey = this.store.keys().next().value;
+      if (oldestKey !== undefined) this.store.delete(oldestKey);
     }
 
     this.store.set(key, {
@@ -50,7 +50,7 @@ export class TTLCache<T> {
 }
 
 export function buildSimulationCacheKey(allocation: Record<string, number>): string {
-  const orderedKeys = Object.keys(allocation).sort();
+  const orderedKeys = Object.keys(allocation).sort((left, right) => left.localeCompare(right));
   return orderedKeys.map((key) => `${key}:${allocation[key]}`).join("|");
 }
 

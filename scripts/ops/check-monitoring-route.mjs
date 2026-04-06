@@ -32,7 +32,7 @@ const requiredNumbers = [
 
 for (const [label, value] of requiredNumbers) {
   if (typeof value !== "number" || Number.isNaN(value)) {
-    throw new Error(`Monitoring route returned an invalid ${label}`);
+    throw new TypeError(`Monitoring route returned an invalid ${label}`);
   }
 }
 

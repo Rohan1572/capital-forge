@@ -196,9 +196,9 @@ function distributePercentages(
 
   rawShares.sort((left, right) => right.fraction - left.fraction);
 
-  for (let index = 0; index < rawShares.length; index += 1) {
+  for (const share of rawShares) {
     if (remainder <= 0) break;
-    rawShares[index].base += 1;
+    share.base += 1;
     remainder -= 1;
   }
 
@@ -278,6 +278,463 @@ function formatSignedNumber(value: number) {
   return `${prefix}${value.toFixed(3)}`;
 }
 
+function getToggleClassName(active: boolean, activeClassName: string, inactiveClassName: string) {
+  return active ? activeClassName : inactiveClassName;
+}
+
+function getAllocationStatusClassName(isAllocationValid: boolean) {
+  return isAllocationValid ? "text-emerald-300" : "text-rose-300";
+}
+
+function getAllocationStatusMessage(allocationDelta: number, isAllocationValid: boolean) {
+  if (isAllocationValid) {
+    return "Allocation is valid. Total is exactly 100%.";
+  }
+
+  if (allocationDelta > 0) {
+    return `Add ${allocationDelta}% to reach 100%.`;
+  }
+
+  return `Reduce allocation by ${Math.abs(allocationDelta)}% to reach 100%.`;
+}
+
+function getAutoBalanceDescription(autoBalance: boolean) {
+  return autoBalance
+    ? "Unlocked assets will redistribute automatically to keep the total at 100%."
+    : "Manual edits are freeform until the total reaches 100%.";
+}
+
+function getCompareWithShockDescription(compareWithShock: boolean) {
+  return compareWithShock
+    ? "The next run will compute baseline and shocked outcomes side by side."
+    : "The next run will use the baseline scenario only.";
+}
+
+function getSimulationButtonLabel(isSimulating: boolean) {
+  return isSimulating ? "Running Simulation..." : "Run Simulation";
+}
+
+function getBinaryStateLabel(active: boolean) {
+  return active ? "On" : "Off";
+}
+
+function getShockSummaryMessage(activeShock: ShockParameters | null) {
+  if (activeShock) {
+    return null;
+  }
+
+  return "No active shock is loaded yet. Run a simulation to populate the current shock modifiers.";
+}
+
+type ActiveShockApiResponse = {
+  data?: {
+    shock?: {
+      id: string;
+      title: string;
+      description: string;
+      modifiers?: {
+        meanShift: number;
+        volatilityMultiplier: number;
+        correlationShift: number;
+        meanShiftByAsset?: Record<string, number>;
+        volatilityMultiplierByAsset?: Record<string, number>;
+        correlationShiftByAsset?: Record<string, Record<string, number>>;
+      };
+    } | null;
+  };
+};
+
+function getActiveShockFromResponse(payload: ActiveShockApiResponse): ShockParameters | null {
+  const shock = payload.data?.shock ?? null;
+  const modifiers = shock?.modifiers;
+
+  if (!shock || !modifiers) return null;
+
+  return {
+    id: shock.id,
+    title: shock.title,
+    description: shock.description,
+    meanShift: modifiers.meanShift,
+    volatilityMultiplier: modifiers.volatilityMultiplier,
+    correlationShift: modifiers.correlationShift,
+    meanShiftByAsset: modifiers.meanShiftByAsset as ShockParameters["meanShiftByAsset"],
+    volatilityMultiplierByAsset:
+      modifiers.volatilityMultiplierByAsset as ShockParameters["volatilityMultiplierByAsset"],
+    correlationShiftByAsset:
+      modifiers.correlationShiftByAsset as ShockParameters["correlationShiftByAsset"],
+  };
+}
+
+async function loadActiveShock() {
+  const shockResponse = await fetch("/api/shocks/active");
+  if (!shockResponse.ok) {
+    return null;
+  }
+
+  const payload = (await shockResponse.json()) as ActiveShockApiResponse;
+  return getActiveShockFromResponse(payload);
+}
+
+function getSimulationCacheOutcomes(
+  cacheKey: string,
+  runSimulation: () => number[],
+  storeOutcomes: (key: string, outcomes: number[]) => void,
+) {
+  const cached = simulationCache.get(cacheKey);
+  if (cached) {
+    return cached;
+  }
+
+  const outcomes = runSimulation();
+  storeOutcomes(cacheKey, outcomes);
+  return outcomes;
+}
+
+function getBaselineOutcomes(allocation: Allocation, runSeed: number) {
+  const cacheKey = [buildSimulationCacheKey(allocation), "seed", runSeed, "shock:none"].join("|");
+  return getSimulationCacheOutcomes(
+    cacheKey,
+    () => runMonteCarloSimulation(allocation, undefined, undefined, runSeed),
+    (key, outcomes) => simulationCache.set(key, outcomes),
+  );
+}
+
+function getShockedOutcomes(allocation: Allocation, shock: ShockParameters, runSeed: number) {
+  const cacheKey = [
+    buildSimulationCacheKey(allocation),
+    `seed:${runSeed}`,
+    `shock:${shock.id}`,
+  ].join("|");
+
+  return getSimulationCacheOutcomes(
+    cacheKey,
+    () => runMonteCarloSimulationWithShock(allocation, shock, undefined, undefined, runSeed),
+    (key, outcomes) => simulationCache.set(key, outcomes),
+  );
+}
+
+function createSimulationScenario(label: string, outcomes: number[]): SimulationScenario {
+  return {
+    label,
+    outcomes,
+    metrics: computeSimulationMetrics(outcomes, RISK_FREE_RATE),
+  };
+}
+
+async function saveSimulationStrategy(params: {
+  allocation: Allocation;
+  metrics: SimulationMetrics;
+  auditSnapshot: ReturnType<typeof buildSimulationAuditSnapshot>;
+  selectedScenario: SimulationScenario;
+  shockedScenario: SimulationScenario | null;
+  shockForRun: ShockParameters | null;
+  simulationLatencyMs: number;
+  runSeed: number;
+}) {
+  const response = await fetch("/api/strategies", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+    body: JSON.stringify({
+      allocation: params.allocation,
+      metrics: params.metrics,
+      assumptionsVersion: params.auditSnapshot.assumptionsVersion,
+      assumptions: params.auditSnapshot.assumptions,
+      seed: params.auditSnapshot.seed,
+      shockId: params.auditSnapshot.shockId,
+      shockModifiers: params.auditSnapshot.shockModifiers,
+      simulationLatencyMs: params.simulationLatencyMs,
+      simulationResults: params.selectedScenario.outcomes,
+      simulationSeed: params.runSeed,
+      simulationMode: params.shockedScenario ? "shocked" : "baseline",
+      simulationShock: params.shockedScenario && params.shockForRun ? params.shockForRun : null,
+    }),
+  });
+
+  if (response.ok) {
+    const payload = (await response.json()) as { data?: { id?: string } };
+    return {
+      savedStrategyId: payload.data?.id ?? null,
+      errorMessage: null as string | null,
+    };
+  }
+
+  return {
+    savedStrategyId: null,
+    errorMessage: "Simulation saved locally, but the strategy could not be stored.",
+  };
+}
+
+async function readAiRiskResponse(response: Response) {
+  if (response.ok) {
+    const payload = (await response.json()) as RiskAiResponse;
+    return {
+      markdown: payload.data?.markdown ?? null,
+      meta: payload.data?.meta ?? null,
+      errorMessage: null as string | null,
+    };
+  }
+
+  if (response.status === 429) {
+    return {
+      markdown: null,
+      meta: null,
+      errorMessage: "AI insights are rate limited. Please wait a minute and try again.",
+    };
+  }
+
+  return {
+    markdown: null,
+    meta: null,
+    errorMessage: "AI insights are unavailable right now.",
+  };
+}
+
+async function readAiDebateResponse(response: Response) {
+  if (response.ok) {
+    const payload = (await response.json()) as DebateAiResponse;
+    return {
+      calls: payload.data?.calls ?? null,
+      meta: payload.data?.meta ?? null,
+      errorMessage: null as string | null,
+    };
+  }
+
+  if (response.status === 429) {
+    return {
+      calls: null,
+      meta: null,
+      errorMessage: "AI debate insights are rate limited. Please wait a minute and try again.",
+    };
+  }
+
+  return {
+    calls: null,
+    meta: null,
+    errorMessage: "AI debate insights are unavailable right now.",
+  };
+}
+
+async function loadAiInsights(params: {
+  allocation: Allocation;
+  metrics: SimulationMetrics;
+  savedStrategyId: string | null;
+}) {
+  const [aiRiskResponse, aiDebateResponse] = await Promise.all([
+    fetch("/api/ai/risk", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        allocation: params.allocation,
+        metrics: params.metrics,
+        strategyId: params.savedStrategyId ?? undefined,
+      }),
+    }),
+    fetch("/api/ai/debate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        allocation: params.allocation,
+        metrics: params.metrics,
+        strategyId: params.savedStrategyId ?? undefined,
+      }),
+    }),
+  ]);
+
+  const aiRisk = await readAiRiskResponse(aiRiskResponse);
+  const aiDebate = await readAiDebateResponse(aiDebateResponse);
+
+  return {
+    aiRiskMarkdown: aiRisk.markdown,
+    aiRiskMeta: aiRisk.meta,
+    aiDebateCalls: aiDebate.calls,
+    aiDebateMeta: aiDebate.meta,
+    errorMessage: aiRisk.errorMessage ?? aiDebate.errorMessage,
+  };
+}
+
+function ShockModifiersCard({
+  activeShock,
+}: Readonly<{
+  activeShock: ShockParameters | null;
+}>) {
+  return (
+    <article className="rounded-lg border border-zinc-800 bg-zinc-950/40 p-4">
+      <h2 className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
+        Shock Modifiers
+      </h2>
+      {activeShock ? (
+        <div className="mt-3 space-y-3 text-sm text-zinc-200">
+          <div>
+            <p className="font-medium text-zinc-100">{activeShock.title}</p>
+            <p className="mt-1 text-zinc-400">{activeShock.description}</p>
+          </div>
+          <dl className="grid gap-2">
+            <div className="flex items-center justify-between gap-4">
+              <dt className="text-zinc-400">Mean shift</dt>
+              <dd>{renderShockModifier(activeShock.meanShift)}</dd>
+            </div>
+            <div className="flex items-center justify-between gap-4">
+              <dt className="text-zinc-400">Volatility multiplier</dt>
+              <dd>{activeShock.volatilityMultiplier.toFixed(2)}x</dd>
+            </div>
+            <div className="flex items-center justify-between gap-4">
+              <dt className="text-zinc-400">Correlation shift</dt>
+              <dd>{renderShockModifier(activeShock.correlationShift)}</dd>
+            </div>
+          </dl>
+        </div>
+      ) : (
+        <p className="mt-3 text-sm text-zinc-400">{getShockSummaryMessage(activeShock)}</p>
+      )}
+    </article>
+  );
+}
+
+function ErrorBanner({ error }: Readonly<{ error: string | null }>) {
+  if (!error) return null;
+
+  return (
+    <section className="rounded-xl border border-rose-500/40 bg-rose-950/30 p-4 text-sm text-rose-200">
+      {error}
+    </section>
+  );
+}
+
+function SimulatingPanel({ isSimulating }: Readonly<{ isSimulating: boolean }>) {
+  if (!isSimulating) return null;
+
+  return (
+    <section className="rounded-xl border border-zinc-800 bg-zinc-900/80 p-6">
+      <p className="text-sm text-zinc-300">Simulating 10,000 market paths...</p>
+      <div className="mt-4 space-y-4">
+        <SkeletonBlock className="h-56 w-full" />
+        <SkeletonGrid>
+          <SkeletonSection title="Risk Summary" />
+          <SkeletonSection title="Portfolio Risks" />
+        </SkeletonGrid>
+        <SkeletonStack rows={3} />
+      </div>
+    </section>
+  );
+}
+
+function SimulationResultsPanel({
+  simulationResults,
+  activeShock,
+}: Readonly<{
+  simulationResults: number[] | null;
+  activeShock: ShockParameters | null;
+}>) {
+  if (!simulationResults) return null;
+
+  return (
+    <section className="rounded-xl border border-zinc-800 bg-zinc-900/80 p-6">
+      <header className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h2 className="text-lg font-semibold text-zinc-100">Simulation Results</h2>
+          <p className="text-sm text-zinc-400">
+            {activeShock
+              ? "Simulated with active weekly shock adjustments."
+              : "Simulated with baseline assumptions."}
+          </p>
+        </div>
+        {activeShock ? (
+          <div className="rounded-lg border border-amber-500/40 bg-amber-950/30 px-3 py-2 text-xs text-amber-200">
+            Weekly Shock Active
+          </div>
+        ) : null}
+      </header>
+
+      {activeShock ? (
+        <div className="mt-4 rounded-lg border border-amber-500/20 bg-amber-950/20 p-4">
+          <p className="text-sm font-semibold text-amber-100">{activeShock.title}</p>
+          <p className="mt-1 text-sm text-amber-200">{activeShock.description}</p>
+        </div>
+      ) : null}
+
+      <div className="mt-6">
+        <SimulationChart values={simulationResults} />
+      </div>
+    </section>
+  );
+}
+
+function SimulationComparisonPanel({
+  simulationComparison,
+}: Readonly<{
+  simulationComparison: {
+    baseline: SimulationScenario;
+    shocked: SimulationScenario | null;
+  } | null;
+}>) {
+  if (!simulationComparison?.shocked) return null;
+
+  return (
+    <section className="rounded-xl border border-zinc-800 bg-zinc-900/80 p-6">
+      <header className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h2 className="text-lg font-semibold text-zinc-100">Shock Comparison</h2>
+          <p className="text-sm text-zinc-400">
+            Baseline assumptions compared against the active shock.
+          </p>
+        </div>
+        <div className="rounded-lg border border-cyan-500/30 bg-cyan-950/30 px-3 py-2 text-xs text-cyan-200">
+          {simulationComparison.shocked.label}
+        </div>
+      </header>
+
+      <div className="mt-5 grid gap-4 md:grid-cols-4">
+        {[
+          {
+            label: "Expected Return",
+            baseline: simulationComparison.baseline.metrics.expectedReturn,
+            shocked: simulationComparison.shocked.metrics.expectedReturn,
+            formatter: formatSignedPercent,
+          },
+          {
+            label: "Sharpe Ratio",
+            baseline: simulationComparison.baseline.metrics.sharpeRatio,
+            shocked: simulationComparison.shocked.metrics.sharpeRatio,
+            formatter: formatSignedNumber,
+          },
+          {
+            label: "Max Drawdown",
+            baseline: simulationComparison.baseline.metrics.maxDrawdown,
+            shocked: simulationComparison.shocked.metrics.maxDrawdown,
+            formatter: formatSignedPercent,
+          },
+          {
+            label: "VaR (5%)",
+            baseline: simulationComparison.baseline.metrics.valueAtRisk5,
+            shocked: simulationComparison.shocked.metrics.valueAtRisk5,
+            formatter: formatSignedPercent,
+          },
+        ].map((metric) => {
+          const delta = metric.shocked - metric.baseline;
+          return (
+            <article
+              key={metric.label}
+              className="rounded-lg border border-zinc-800 bg-zinc-950/50 p-4"
+            >
+              <p className="text-xs uppercase tracking-wide text-zinc-500">{metric.label}</p>
+              <p className="mt-2 text-lg font-semibold text-zinc-100">
+                {metric.formatter(metric.shocked)}
+              </p>
+              <p className="mt-1 text-sm text-zinc-400">
+                Baseline: {metric.formatter(metric.baseline)}
+              </p>
+              <p className={`mt-1 text-sm ${delta >= 0 ? "text-emerald-300" : "text-rose-300"}`}>
+                Delta: {formatSignedNumber(delta)}
+              </p>
+            </article>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
 export default function SimulatePage() {
   const [allocation, setAllocation] = useState<Allocation>(defaultAllocation);
   const [lockedAssets, setLockedAssets] = useState<LockState>(initialLockState);
@@ -298,13 +755,13 @@ export default function SimulatePage() {
   const [saveToast, setSaveToast] = useState<SaveToastState | null>(null);
 
   useEffect(() => {
-    if (!saveToast) return;
+    if (saveToast) {
+      const timer = globalThis.setTimeout(() => {
+        setSaveToast(null);
+      }, 5000);
 
-    const timer = window.setTimeout(() => {
-      setSaveToast(null);
-    }, 5000);
-
-    return () => window.clearTimeout(timer);
+      return () => globalThis.clearTimeout(timer);
+    }
   }, [saveToast]);
 
   const totalAllocation = useMemo(() => {
@@ -322,6 +779,21 @@ export default function SimulatePage() {
 
   const allocationDelta = 100 - totalAllocation;
   const isAllocationValid = totalAllocation === 100;
+  const autoBalanceToggleClassName = getToggleClassName(
+    autoBalance,
+    "border-emerald-400/50 bg-emerald-400/10 text-emerald-100",
+    "border-zinc-700 bg-zinc-950 text-zinc-300 hover:border-zinc-500",
+  );
+  const compareWithShockToggleClassName = getToggleClassName(
+    compareWithShock,
+    "border-cyan-400/50 bg-cyan-400/10 text-cyan-100",
+    "border-zinc-700 bg-zinc-950 text-zinc-300 hover:border-zinc-500",
+  );
+  const allocationStatusClassName = getAllocationStatusClassName(isAllocationValid);
+  const allocationStatusMessage = getAllocationStatusMessage(allocationDelta, isAllocationValid);
+  const autoBalanceDescription = getAutoBalanceDescription(autoBalance);
+  const compareWithShockDescription = getCompareWithShockDescription(compareWithShock);
+  const runSimulationButtonLabel = getSimulationButtonLabel(isSimulating);
 
   function handleSliderChange(asset: keyof Allocation, value: number) {
     setAllocation((current) =>
@@ -371,100 +843,21 @@ export default function SimulatePage() {
     try {
       const simulationStartedAt = performance.now();
       const runSeed = createSimulationSeed();
-      let shockForRun: ShockParameters | null = null;
-      const shockResponse = await fetch("/api/shocks/active");
-      if (shockResponse.ok) {
-        const payload = (await shockResponse.json()) as {
-          data?: {
-            shock?: {
-              id: string;
-              title: string;
-              description: string;
-              modifiers?: {
-                meanShift: number;
-                volatilityMultiplier: number;
-                correlationShift: number;
-                meanShiftByAsset?: Record<string, number>;
-                volatilityMultiplierByAsset?: Record<string, number>;
-                correlationShiftByAsset?: Record<string, Record<string, number>>;
-              };
-            } | null;
-          };
-        };
-        const shock = payload.data?.shock ?? null;
-        const modifiers = shock?.modifiers;
-        if (shock && modifiers) {
-          shockForRun = {
-            id: shock.id,
-            title: shock.title,
-            description: shock.description,
-            meanShift: modifiers.meanShift,
-            volatilityMultiplier: modifiers.volatilityMultiplier,
-            correlationShift: modifiers.correlationShift,
-            meanShiftByAsset: modifiers.meanShiftByAsset as ShockParameters["meanShiftByAsset"],
-            volatilityMultiplierByAsset:
-              modifiers.volatilityMultiplierByAsset as ShockParameters["volatilityMultiplierByAsset"],
-            correlationShiftByAsset:
-              modifiers.correlationShiftByAsset as ShockParameters["correlationShiftByAsset"],
-          };
-          setActiveShock(shockForRun);
-        } else {
-          setActiveShock(null);
-        }
-      }
+      const shockForRun = await loadActiveShock();
+      setActiveShock(shockForRun);
 
-      const baselineCacheKey = [
-        buildSimulationCacheKey(allocation),
-        "seed",
-        runSeed,
-        "shock:none",
-      ].join("|");
-      const baselineCached = simulationCache.get(baselineCacheKey);
-      const baselineOutcomes =
-        baselineCached ?? runMonteCarloSimulation(allocation, undefined, undefined, runSeed);
-      if (!baselineCached) {
-        simulationCache.set(baselineCacheKey, baselineOutcomes);
-      }
-
-      const shouldCompareWithShock = compareWithShock && Boolean(shockForRun);
+      const baselineOutcomes = getBaselineOutcomes(allocation, runSeed);
       const shockedOutcomes =
-        shouldCompareWithShock && shockForRun
-          ? (() => {
-              const shockCacheKey = [
-                buildSimulationCacheKey(allocation),
-                `seed:${runSeed}`,
-                `shock:${shockForRun.id}`,
-              ].join("|");
-              const cached = simulationCache.get(shockCacheKey);
-              const nextOutcomes =
-                cached ??
-                runMonteCarloSimulationWithShock(
-                  allocation,
-                  shockForRun,
-                  undefined,
-                  undefined,
-                  runSeed,
-                );
-              if (!cached) {
-                simulationCache.set(shockCacheKey, nextOutcomes);
-              }
-              return nextOutcomes;
-            })()
+        compareWithShock && shockForRun
+          ? getShockedOutcomes(allocation, shockForRun, runSeed)
           : null;
-
-      const baselineScenario: SimulationScenario = {
-        label: "Baseline",
-        outcomes: baselineOutcomes,
-        metrics: computeSimulationMetrics(baselineOutcomes, RISK_FREE_RATE),
-      };
-      const shockedScenario: SimulationScenario | null = shockedOutcomes
-        ? {
-            label: `Active shock: ${shockForRun?.title ?? "Enabled"}`,
-            outcomes: shockedOutcomes,
-            metrics: computeSimulationMetrics(shockedOutcomes, RISK_FREE_RATE),
-          }
+      const baselineScenario = createSimulationScenario("Baseline", baselineOutcomes);
+      const shockedScenario = shockedOutcomes
+        ? createSimulationScenario(
+            `Active shock: ${shockForRun?.title ?? "Enabled"}`,
+            shockedOutcomes,
+          )
         : null;
-
       const selectedScenario = shockedScenario ?? baselineScenario;
       const metrics = selectedScenario.metrics;
       const simulationLatencyMs = Math.round(performance.now() - simulationStartedAt);
@@ -473,84 +866,35 @@ export default function SimulatePage() {
         runSeed,
         shockedScenario && shockForRun ? shockForRun : null,
       );
-      const saveResponse = await fetch("/api/strategies", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({
-          allocation,
-          metrics,
-          assumptionsVersion: auditSnapshot.assumptionsVersion,
-          assumptions: auditSnapshot.assumptions,
-          seed: auditSnapshot.seed,
-          shockId: auditSnapshot.shockId,
-          shockModifiers: auditSnapshot.shockModifiers,
-          simulationLatencyMs,
-          simulationResults: selectedScenario.outcomes,
-          simulationSeed: runSeed,
-          simulationMode: shockedScenario ? "shocked" : "baseline",
-          simulationShock: shockedScenario && shockForRun ? shockForRun : null,
-        }),
+      const saveResult = await saveSimulationStrategy({
+        allocation,
+        metrics,
+        auditSnapshot,
+        selectedScenario,
+        shockedScenario,
+        shockForRun,
+        simulationLatencyMs,
+        runSeed,
       });
 
-      let errorMessage: string | null = null;
-      let savedStrategyId: string | null = null;
-      if (!saveResponse.ok) {
-        errorMessage = "Simulation saved locally, but the strategy could not be stored.";
-      } else {
-        const savePayload = (await saveResponse.json()) as { data?: { id?: string } };
-        savedStrategyId = savePayload.data?.id ?? null;
-      }
+      const aiInsights = await loadAiInsights({
+        allocation,
+        metrics,
+        savedStrategyId: saveResult.savedStrategyId,
+      });
 
-      const [aiRiskResponse, aiDebateResponse] = await Promise.all([
-        fetch("/api/ai/risk", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ allocation, metrics, strategyId: savedStrategyId ?? undefined }),
-        }),
-        fetch("/api/ai/debate", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ allocation, metrics, strategyId: savedStrategyId ?? undefined }),
-        }),
-      ]);
-
-      if (aiRiskResponse.ok) {
-        const payload = (await aiRiskResponse.json()) as RiskAiResponse;
-        setAiRiskMarkdown(payload.data?.markdown ?? null);
-        setAiRiskMeta(payload.data?.meta ?? null);
-      } else if (aiRiskResponse.status === 429) {
-        setAiRiskMarkdown(null);
-        setAiRiskMeta(null);
-        errorMessage ??= "AI insights are rate limited. Please wait a minute and try again.";
-      } else {
-        setAiRiskMarkdown(null);
-        setAiRiskMeta(null);
-        errorMessage ??= "AI insights are unavailable right now.";
-      }
-
-      if (aiDebateResponse.ok) {
-        const payload = (await aiDebateResponse.json()) as DebateAiResponse;
-        setAiDebateCalls(payload.data?.calls ?? null);
-        setAiDebateMeta(payload.data?.meta ?? null);
-      } else if (aiDebateResponse.status === 429) {
-        setAiDebateCalls(null);
-        setAiDebateMeta(null);
-        errorMessage ??= "AI debate insights are rate limited. Please wait a minute and try again.";
-      } else {
-        setAiDebateCalls(null);
-        setAiDebateMeta(null);
-        errorMessage ??= "AI debate insights are unavailable right now.";
-      }
-
-      setError(errorMessage);
+      setAiRiskMarkdown(aiInsights.aiRiskMarkdown);
+      setAiRiskMeta(aiInsights.aiRiskMeta);
+      setAiDebateCalls(aiInsights.aiDebateCalls);
+      setAiDebateMeta(aiInsights.aiDebateMeta);
+      setError(saveResult.errorMessage ?? aiInsights.errorMessage);
       setSimulationResults(selectedScenario.outcomes);
       setSimulationComparison({
         baseline: baselineScenario,
         shocked: shockedScenario,
       });
-      if (savedStrategyId) {
-        setSaveToast({ strategyId: savedStrategyId });
+      if (saveResult.savedStrategyId) {
+        setSaveToast({ strategyId: saveResult.savedStrategyId });
       }
     } catch (err) {
       console.error("Simulation failed", err);
@@ -672,38 +1016,7 @@ export default function SimulatePage() {
               </dl>
             </article>
 
-            <article className="rounded-lg border border-zinc-800 bg-zinc-950/40 p-4">
-              <h2 className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
-                Shock Modifiers
-              </h2>
-              {activeShock ? (
-                <div className="mt-3 space-y-3 text-sm text-zinc-200">
-                  <div>
-                    <p className="font-medium text-zinc-100">{activeShock.title}</p>
-                    <p className="mt-1 text-zinc-400">{activeShock.description}</p>
-                  </div>
-                  <dl className="grid gap-2">
-                    <div className="flex items-center justify-between gap-4">
-                      <dt className="text-zinc-400">Mean shift</dt>
-                      <dd>{renderShockModifier(activeShock.meanShift)}</dd>
-                    </div>
-                    <div className="flex items-center justify-between gap-4">
-                      <dt className="text-zinc-400">Volatility multiplier</dt>
-                      <dd>{activeShock.volatilityMultiplier.toFixed(2)}x</dd>
-                    </div>
-                    <div className="flex items-center justify-between gap-4">
-                      <dt className="text-zinc-400">Correlation shift</dt>
-                      <dd>{renderShockModifier(activeShock.correlationShift)}</dd>
-                    </div>
-                  </dl>
-                </div>
-              ) : (
-                <p className="mt-3 text-sm text-zinc-400">
-                  No active shock is loaded yet. Run a simulation to populate the current shock
-                  modifiers.
-                </p>
-              )}
-            </article>
+            <ShockModifiersCard activeShock={activeShock} />
           </section>
         </div>
       </details>
@@ -742,19 +1055,11 @@ export default function SimulatePage() {
             type="button"
             onClick={handleToggleAutoBalance}
             aria-pressed={autoBalance}
-            className={`rounded-full border px-4 py-2 text-sm font-medium transition ${
-              autoBalance
-                ? "border-emerald-400/50 bg-emerald-400/10 text-emerald-100"
-                : "border-zinc-700 bg-zinc-950 text-zinc-300 hover:border-zinc-500"
-            }`}
+            className={`rounded-full border px-4 py-2 text-sm font-medium transition ${autoBalanceToggleClassName}`}
           >
-            Auto-balance: {autoBalance ? "On" : "Off"}
+            Auto-balance: {getBinaryStateLabel(autoBalance)}
           </button>
-          <p className="text-sm text-zinc-500">
-            {autoBalance
-              ? "Unlocked assets will redistribute automatically to keep the total at 100%."
-              : "Manual edits are freeform until the total reaches 100%."}
-          </p>
+          <p className="text-sm text-zinc-500">{autoBalanceDescription}</p>
         </div>
 
         <div className="mt-4 flex flex-wrap items-center gap-3 rounded-lg border border-zinc-800 bg-zinc-950/40 px-4 py-3">
@@ -762,19 +1067,11 @@ export default function SimulatePage() {
             type="button"
             onClick={handleToggleCompareWithShock}
             aria-pressed={compareWithShock}
-            className={`rounded-full border px-4 py-2 text-sm font-medium transition ${
-              compareWithShock
-                ? "border-cyan-400/50 bg-cyan-400/10 text-cyan-100"
-                : "border-zinc-700 bg-zinc-950 text-zinc-300 hover:border-zinc-500"
-            }`}
+            className={`rounded-full border px-4 py-2 text-sm font-medium transition ${compareWithShockToggleClassName}`}
           >
-            Compare with active shock: {compareWithShock ? "On" : "Off"}
+            Compare with active shock: {getBinaryStateLabel(compareWithShock)}
           </button>
-          <p className="text-sm text-zinc-500">
-            {compareWithShock
-              ? "The next run will compute baseline and shocked outcomes side by side."
-              : "The next run will use the baseline scenario only."}
-          </p>
+          <p className="text-sm text-zinc-500">{compareWithShockDescription}</p>
         </div>
 
         <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,1.35fr)_minmax(320px,0.9fr)]">
@@ -803,13 +1100,7 @@ export default function SimulatePage() {
         }`}
       >
         <p className="text-sm text-zinc-300">Total allocation: {totalAllocation}%</p>
-        <p className={`mt-1 text-sm ${isAllocationValid ? "text-emerald-300" : "text-rose-300"}`}>
-          {isAllocationValid
-            ? "Allocation is valid. Total is exactly 100%."
-            : allocationDelta > 0
-              ? `Add ${allocationDelta}% to reach 100%.`
-              : `Reduce allocation by ${Math.abs(allocationDelta)}% to reach 100%.`}
-        </p>
+        <p className={`mt-1 text-sm ${allocationStatusClassName}`}>{allocationStatusMessage}</p>
         <p className="mt-2 text-xs text-zinc-400">
           Locked assets: {assetKeys.filter((key) => lockedAssets[key]).length}/{assetKeys.length}
         </p>
@@ -821,204 +1112,16 @@ export default function SimulatePage() {
         onClick={handleRunSimulation}
         className="w-fit rounded-lg bg-zinc-100 px-4 py-2 text-sm font-medium text-zinc-950 transition disabled:cursor-not-allowed disabled:bg-zinc-700 disabled:text-zinc-400"
       >
-        {isSimulating ? "Running Simulation..." : "Run Simulation"}
+        {runSimulationButtonLabel}
       </button>
 
-      {error ? (
-        <section className="rounded-xl border border-rose-500/40 bg-rose-950/30 p-4 text-sm text-rose-200">
-          {error}
-        </section>
-      ) : null}
+      <ErrorBanner error={error} />
 
-      {isSimulating ? (
-        <section className="rounded-xl border border-zinc-800 bg-zinc-900/80 p-6">
-          <p className="text-sm text-zinc-300">Simulating 10,000 market paths...</p>
-          <div className="mt-4 space-y-4">
-            <SkeletonBlock className="h-56 w-full" />
-            <SkeletonGrid>
-              <SkeletonSection title="Risk Summary" />
-              <SkeletonSection title="Portfolio Risks" />
-            </SkeletonGrid>
-            <SkeletonStack rows={3} />
-          </div>
-        </section>
-      ) : null}
+      <SimulatingPanel isSimulating={isSimulating} />
 
-      {simulationResults ? (
-        <section className="rounded-xl border border-zinc-800 bg-zinc-900/80 p-6">
-          <header className="flex flex-wrap items-start justify-between gap-3">
-            <div>
-              <h2 className="text-lg font-semibold text-zinc-100">Simulation Results</h2>
-              <p className="text-sm text-zinc-400">
-                {activeShock
-                  ? "Simulated with active weekly shock adjustments."
-                  : "Simulated with baseline assumptions."}
-              </p>
-            </div>
-            {activeShock ? (
-              <div className="rounded-lg border border-amber-500/40 bg-amber-950/30 px-3 py-2 text-xs text-amber-200">
-                Weekly Shock Active
-              </div>
-            ) : null}
-          </header>
+      <SimulationResultsPanel simulationResults={simulationResults} activeShock={activeShock} />
 
-          {activeShock ? (
-            <div className="mt-4 rounded-lg border border-amber-500/20 bg-amber-950/20 p-4">
-              <p className="text-sm font-semibold text-amber-100">{activeShock.title}</p>
-              <p className="mt-1 text-sm text-amber-200">{activeShock.description}</p>
-            </div>
-          ) : null}
-
-          <div className="mt-6">
-            <SimulationChart values={simulationResults} />
-          </div>
-        </section>
-      ) : null}
-
-      {simulationComparison?.shocked ? (
-        <section className="rounded-xl border border-zinc-800 bg-zinc-900/80 p-6">
-          <header className="flex flex-wrap items-start justify-between gap-3">
-            <div>
-              <h2 className="text-lg font-semibold text-zinc-100">Shock Comparison</h2>
-              <p className="text-sm text-zinc-400">
-                Baseline assumptions compared against the active shock.
-              </p>
-            </div>
-            <div className="rounded-lg border border-cyan-500/30 bg-cyan-950/30 px-3 py-2 text-xs text-cyan-200">
-              {simulationComparison.shocked.label}
-            </div>
-          </header>
-
-          <div className="mt-5 grid gap-4 md:grid-cols-4">
-            {[
-              {
-                label: "Expected Return",
-                baseline: simulationComparison.baseline.metrics.expectedReturn,
-                shocked: simulationComparison.shocked.metrics.expectedReturn,
-                formatter: formatSignedPercent,
-              },
-              {
-                label: "Sharpe Ratio",
-                baseline: simulationComparison.baseline.metrics.sharpeRatio,
-                shocked: simulationComparison.shocked.metrics.sharpeRatio,
-                formatter: formatSignedNumber,
-              },
-              {
-                label: "Max Drawdown",
-                baseline: simulationComparison.baseline.metrics.maxDrawdown,
-                shocked: simulationComparison.shocked.metrics.maxDrawdown,
-                formatter: formatSignedPercent,
-              },
-              {
-                label: "VaR (5%)",
-                baseline: simulationComparison.baseline.metrics.valueAtRisk5,
-                shocked: simulationComparison.shocked.metrics.valueAtRisk5,
-                formatter: formatSignedPercent,
-              },
-            ].map((metric) => {
-              const delta = metric.shocked - metric.baseline;
-              return (
-                <article
-                  key={metric.label}
-                  className="rounded-lg border border-zinc-800 bg-zinc-950/50 p-4"
-                >
-                  <p className="text-xs uppercase tracking-wide text-zinc-500">{metric.label}</p>
-                  <div className="mt-2 flex items-end justify-between gap-3">
-                    <div>
-                      <p className="text-lg font-semibold text-zinc-100">
-                        {metric.formatter(metric.shocked)}
-                      </p>
-                      <p className="text-xs text-zinc-500">
-                        Baseline {metric.formatter(metric.baseline)}
-                      </p>
-                    </div>
-                    <p className={delta >= 0 ? "text-emerald-300" : "text-rose-300"}>
-                      {metric.formatter(delta)}
-                    </p>
-                  </div>
-                </article>
-              );
-            })}
-          </div>
-
-          <div className="mt-6 overflow-hidden rounded-lg border border-zinc-800">
-            <div className="overflow-x-auto">
-              <table className="min-w-full text-left text-sm">
-                <thead className="bg-zinc-950/80 text-xs uppercase text-zinc-500">
-                  <tr>
-                    <th className="px-4 py-3">Metric</th>
-                    <th className="px-4 py-3">Baseline</th>
-                    <th className="px-4 py-3">Shock</th>
-                    <th className="px-4 py-3">Delta</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-zinc-800 bg-zinc-950/40 text-zinc-200">
-                  {[
-                    {
-                      label: "Expected Return",
-                      baseline: simulationComparison.baseline.metrics.expectedReturn,
-                      shocked: simulationComparison.shocked.metrics.expectedReturn,
-                      formatter: formatPercent,
-                      deltaFormatter: formatSignedPercent,
-                    },
-                    {
-                      label: "Standard Deviation",
-                      baseline: simulationComparison.baseline.metrics.standardDeviation,
-                      shocked: simulationComparison.shocked.metrics.standardDeviation,
-                      formatter: formatPercent,
-                      deltaFormatter: formatSignedPercent,
-                    },
-                    {
-                      label: "Sharpe Ratio",
-                      baseline: simulationComparison.baseline.metrics.sharpeRatio,
-                      shocked: simulationComparison.shocked.metrics.sharpeRatio,
-                      formatter: (value: number) => value.toFixed(3),
-                      deltaFormatter: formatSignedNumber,
-                    },
-                    {
-                      label: "Max Drawdown",
-                      baseline: simulationComparison.baseline.metrics.maxDrawdown,
-                      shocked: simulationComparison.shocked.metrics.maxDrawdown,
-                      formatter: formatPercent,
-                      deltaFormatter: formatSignedPercent,
-                    },
-                    {
-                      label: "VaR (5%)",
-                      baseline: simulationComparison.baseline.metrics.valueAtRisk5,
-                      shocked: simulationComparison.shocked.metrics.valueAtRisk5,
-                      formatter: formatPercent,
-                      deltaFormatter: formatSignedPercent,
-                    },
-                    {
-                      label: "CVaR (95%)",
-                      baseline: simulationComparison.baseline.metrics.conditionalValueAtRisk95,
-                      shocked: simulationComparison.shocked.metrics.conditionalValueAtRisk95,
-                      formatter: formatPercent,
-                      deltaFormatter: formatSignedPercent,
-                    },
-                  ].map((row) => {
-                    const delta = row.shocked - row.baseline;
-                    return (
-                      <tr key={row.label}>
-                        <td className="px-4 py-3 font-medium text-zinc-100">{row.label}</td>
-                        <td className="px-4 py-3">{row.formatter(row.baseline)}</td>
-                        <td className="px-4 py-3">{row.formatter(row.shocked)}</td>
-                        <td
-                          className={`px-4 py-3 ${
-                            delta >= 0 ? "text-emerald-300" : "text-rose-300"
-                          }`}
-                        >
-                          {row.deltaFormatter(delta)}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </section>
-      ) : null}
+      <SimulationComparisonPanel simulationComparison={simulationComparison} />
       {aiRiskMarkdown ? (
         <RiskExplainerPanel markdown={aiRiskMarkdown} meta={aiRiskMeta ?? undefined} />
       ) : null}

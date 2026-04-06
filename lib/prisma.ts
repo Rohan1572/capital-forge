@@ -11,7 +11,18 @@ if (!connectionString) {
   throw new Error("DATABASE_URL is not defined");
 }
 
-const adapter = new PrismaPg({ connectionString });
+function normalizeConnectionString(value: string) {
+  const url = new URL(value);
+  const sslmode = url.searchParams.get("sslmode");
+
+  if (sslmode === "require" || sslmode === "prefer" || sslmode === "verify-ca") {
+    url.searchParams.set("sslmode", "verify-full");
+  }
+
+  return url.toString();
+}
+
+const adapter = new PrismaPg({ connectionString: normalizeConnectionString(connectionString) });
 
 export const prisma =
   globalForPrisma.prisma ??

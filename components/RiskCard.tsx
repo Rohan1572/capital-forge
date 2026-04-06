@@ -1,11 +1,11 @@
 import { MetricLabel } from "@/components/MetricLabel";
 import type { MetricKey } from "@/lib/metricDefinitions";
 
-type RiskCardProps = {
+type RiskCardProps = Readonly<{
   label: string;
   value: string;
   metric?: MetricKey;
-};
+}>;
 
 export function RiskCard({ label, value, metric }: RiskCardProps) {
   return (

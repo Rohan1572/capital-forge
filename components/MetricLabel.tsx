@@ -1,10 +1,10 @@
 import { metricDefinitions, type MetricKey } from "@/lib/metricDefinitions";
 
-type MetricLabelProps = {
+type MetricLabelProps = Readonly<{
   metric: MetricKey;
   label: string;
   className?: string;
-};
+}>;
 
 export function MetricLabel({ metric, label, className }: MetricLabelProps) {
   return (

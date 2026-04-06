@@ -70,19 +70,19 @@ function buildRiskSchema() {
 
 function parseRiskExplainerJson(raw: unknown): RiskExplainerJson {
   if (!raw || typeof raw !== "object") {
-    throw new Error("AI response was not an object.");
+    throw new TypeError("AI response was not an object.");
   }
   const record = raw as Record<string, unknown>;
   const readArray = (key: keyof RiskExplainerJson, minItems: number): string[] => {
     const value = record[key];
     if (!Array.isArray(value)) {
-      throw new Error(`AI response missing ${String(key)} array.`);
+      throw new TypeError(`AI response missing ${String(key)} array.`);
     }
     const items = value
       .map((entry) => (typeof entry === "string" ? entry.trim() : ""))
       .filter(Boolean);
     if (items.length < minItems) {
-      throw new Error(`AI response ${String(key)} requires at least ${minItems} items.`);
+      throw new TypeError(`AI response ${String(key)} requires at least ${minItems} items.`);
     }
     return items;
   };
@@ -234,7 +234,7 @@ export async function POST(request: Request) {
         ?.content?.find((part) => part.type === "output_text")?.text;
 
     if (!outputText) {
-      throw new Error("OpenAI response missing output text.");
+      throw new TypeError("OpenAI response missing output text.");
     }
 
     const json = parseRiskExplainerJson(JSON.parse(outputText));

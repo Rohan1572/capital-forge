@@ -1,4 +1,4 @@
-import Link from "next/link";
+﻿import Link from "next/link";
 import { headers } from "next/headers";
 import { notFound, redirect } from "next/navigation";
 import { MetricLabel } from "@/components/MetricLabel";
@@ -420,7 +420,7 @@ function MetricsSidebar({ metrics }: Readonly<{ metrics: SimulationMetrics }>) {
   );
 }
 
-export default async function StrategyPage({ params }: StrategyPageProps) {
+export default async function StrategyPage({ params }: Readonly<StrategyPageProps>) {
   const user = await getSessionUser();
   if (!user) {
     redirect("/login");

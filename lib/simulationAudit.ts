@@ -1,4 +1,8 @@
-import { type AssetReturnAssumptions } from "./assetAssumptions";
+import {
+  type AssetReturnAssumption,
+  type AssetReturnAssumptions,
+  type SimulationRegimes,
+} from "./assetAssumptions";
 import type { ShockParameters } from "./shockEngine";
 import {
   buildSimulationConfigSnapshot,
@@ -29,6 +33,17 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }
 
+function parseAssetReturnAssumption(value: unknown): AssetReturnAssumption | null {
+  if (!isRecord(value) || !isFiniteNumber(value.mean) || !isFiniteNumber(value.volatility)) {
+    return null;
+  }
+
+  return {
+    mean: value.mean,
+    volatility: value.volatility,
+  };
+}
+
 export function buildSimulationAssumptionsSnapshot(): SimulationAssumptionsSnapshot {
   const snapshot = buildSimulationConfigSnapshot();
   return {
@@ -55,30 +70,24 @@ export function parseSimulationAssumptionsSnapshot(
 ): SimulationAssumptionsSnapshot | null {
   if (!isRecord(value)) return null;
 
-  const assumptions = value as {
-    assetReturnAssumptions?: unknown;
-    simulationRegimes?: unknown;
-  };
+  const assumptions = value;
 
   if (!isRecord(assumptions.assetReturnAssumptions) || !isRecord(assumptions.simulationRegimes)) {
     return null;
   }
 
-  const assetKeys = Object.keys(
-    buildSimulationConfigSnapshot().assetReturnAssumptions,
-  ) as (keyof AssetReturnAssumptions)[];
-  for (const asset of assetKeys) {
-    const candidate = assumptions.assetReturnAssumptions[asset];
-    if (
-      !isRecord(candidate) ||
-      !isFiniteNumber(candidate.mean) ||
-      !isFiniteNumber(candidate.volatility)
-    ) {
-      return null;
-    }
+  const equity = parseAssetReturnAssumption(assumptions.assetReturnAssumptions.equity);
+  const startups = parseAssetReturnAssumption(assumptions.assetReturnAssumptions.startups);
+  const bonds = parseAssetReturnAssumption(assumptions.assetReturnAssumptions.bonds);
+  const gold = parseAssetReturnAssumption(assumptions.assetReturnAssumptions.gold);
+  const crypto = parseAssetReturnAssumption(assumptions.assetReturnAssumptions.crypto);
+  const cash = parseAssetReturnAssumption(assumptions.assetReturnAssumptions.cash);
+
+  if (!equity || !startups || !bonds || !gold || !crypto || !cash) {
+    return null;
   }
 
-  const crash = (assumptions.simulationRegimes as Record<string, unknown>).crash;
+  const crash = assumptions.simulationRegimes;
   if (
     !isRecord(crash) ||
     !isFiniteNumber(crash.probability) ||
@@ -89,13 +98,37 @@ export function parseSimulationAssumptionsSnapshot(
 
   if (!isRecord(crash.shocks)) return null;
 
-  return assumptions as SimulationAssumptionsSnapshot;
+  return {
+    assetReturnAssumptions: {
+      equity,
+      startups,
+      bonds,
+      gold,
+      crypto,
+      cash,
+    },
+    simulationRegimes: {
+      crash: {
+        probability: crash.probability,
+        volatilityMultiplier: crash.volatilityMultiplier,
+        shocks: crash.shocks as SimulationRegimes["crash"]["shocks"],
+      },
+    },
+  };
+}
+
+function isNumericRecord(value: unknown): value is Record<string, number> {
+  return isRecord(value) && Object.values(value).every(isFiniteNumber);
+}
+
+function isNestedNumericRecord(value: unknown): value is Record<string, Record<string, number>> {
+  return isRecord(value) && Object.values(value).every(isNumericRecord);
 }
 
 export function parseShockModifiersSnapshot(value: unknown): ShockParameters | null {
   if (!isRecord(value)) return null;
 
-  const record = value as Record<string, unknown>;
+  const record = value;
   if (
     typeof record.id !== "string" ||
     typeof record.title !== "string" ||
@@ -107,5 +140,25 @@ export function parseShockModifiersSnapshot(value: unknown): ShockParameters | n
     return null;
   }
 
-  return record as unknown as ShockParameters;
+  const meanShiftByAsset = isNumericRecord(record.meanShiftByAsset)
+    ? record.meanShiftByAsset
+    : undefined;
+  const volatilityMultiplierByAsset = isNumericRecord(record.volatilityMultiplierByAsset)
+    ? record.volatilityMultiplierByAsset
+    : undefined;
+  const correlationShiftByAsset = isNestedNumericRecord(record.correlationShiftByAsset)
+    ? record.correlationShiftByAsset
+    : undefined;
+
+  return {
+    id: record.id,
+    title: record.title,
+    description: record.description,
+    meanShift: record.meanShift,
+    volatilityMultiplier: record.volatilityMultiplier,
+    correlationShift: record.correlationShift,
+    meanShiftByAsset,
+    volatilityMultiplierByAsset,
+    correlationShiftByAsset,
+  };
 }

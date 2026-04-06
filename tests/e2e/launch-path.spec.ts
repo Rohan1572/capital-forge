@@ -1,6 +1,6 @@
-import { expect, test } from "@playwright/test";
+﻿import { expect, test } from "@playwright/test";
 
-test("login, allocate, simulate, save, and view the leaderboard", async ({ page, baseURL }) => {
+test("login, allocate, simulate, save, and rank", async ({ page, baseURL }) => {
   const appUrl = baseURL ?? "http://localhost:3000";
   const uniqueId = Date.now();
   const email = `smoke-${uniqueId}@example.com`;
@@ -128,6 +128,43 @@ test("login, allocate, simulate, save, and view the leaderboard", async ({ page,
     });
   });
 
+  await page.route("**/api/leaderboard**", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        data: [
+          {
+            id: "smoke-strategy",
+            name: "Smoke User",
+            allocation: { Equity: 35, Bonds: 35, Cash: 30 },
+            metrics: {
+              expectedReturn: 0.14,
+              sharpeRatio: 1.2,
+              maxDrawdown: 0.11,
+              valueAtRisk5: -0.08,
+              conditionalValueAtRisk95: -0.12,
+            },
+            createdAt: "2026-04-02T12:00:00.000Z",
+            rank: 1,
+          },
+        ],
+        month: "2026-04",
+        activeShock: null,
+        season: {
+          activeMonth: "2026-04",
+          currentMonth: "2026-04",
+        },
+        pagination: {
+          page: 1,
+          pageSize: 25,
+          total: 1,
+          totalPages: 1,
+        },
+      }),
+    });
+  });
+
   await page.goto("/login");
   await page.waitForLoadState("networkidle");
   await page.getByLabel("Email").fill(email);
@@ -160,9 +197,42 @@ test("login, allocate, simulate, save, and view the leaderboard", async ({ page,
   await expect(page.getByText("Strategy saved successfully")).toBeVisible();
   await expect(page.getByRole("link", { name: "Open strategy detail" })).toBeVisible();
 
+  const leaderboardResponse = page.waitForResponse(
+    (response) =>
+      response.url().includes("/api/leaderboard") && response.request().method() === "GET",
+  );
   await page.getByRole("link", { name: "Leaderboard" }).click();
+  const response = await leaderboardResponse;
+  expect(response.status()).toBe(200);
+
+  const leaderboardPayload = (await response.json()) as {
+    data?: Array<{ name?: string; rank?: number }>;
+    month?: string;
+    activeShock?: unknown;
+    season?: { activeMonth?: string; currentMonth?: string };
+    pagination?: { page?: number; pageSize?: number; total?: number; totalPages?: number };
+  };
+  expect(leaderboardPayload).toEqual(
+    expect.objectContaining({
+      data: expect.any(Array),
+      month: expect.any(String),
+      season: expect.objectContaining({
+        activeMonth: expect.any(String),
+        currentMonth: expect.any(String),
+      }),
+      pagination: expect.objectContaining({
+        page: 1,
+        pageSize: expect.any(Number),
+        total: expect.any(Number),
+        totalPages: expect.any(Number),
+      }),
+    }),
+  );
+  expect(leaderboardPayload).toHaveProperty("activeShock", null);
+
   await expect(page.getByRole("heading", { name: "Leaderboard" })).toBeVisible();
   const smokeRow = page.getByRole("row").filter({ hasText: "Smoke User" }).first();
   await expect(smokeRow).toBeVisible();
+  await expect(smokeRow).toContainText(/#\d+/);
   await expect(smokeRow.getByRole("button", { name: "Show details" })).toBeVisible();
 });

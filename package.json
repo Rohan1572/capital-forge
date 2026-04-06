@@ -18,7 +18,8 @@
     "prisma:studio": "prisma studio",
     "ops:schema:drift": "node scripts/ops/check-schema-drift.mjs",
     "ops:restore:check": "node scripts/ops/validate-restored-database.mjs",
-    "ops:monitoring:check": "node scripts/ops/check-monitoring-route.mjs"
+    "ops:monitoring:check": "node scripts/ops/check-monitoring-route.mjs",
+    "custom": "npm run build && npm run typecheck && npm run test && npm run lint && npm run format"
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7.4.2",
