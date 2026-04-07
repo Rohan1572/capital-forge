@@ -461,7 +461,7 @@ async function saveSimulationStrategy(params: {
 
   return {
     savedStrategyId: null,
-    errorMessage: "Simulation saved locally, but the strategy could not be stored.",
+    errorMessage: "The backend could not save the strategy. Please try again.",
   };
 }
 
@@ -833,6 +833,10 @@ export default function SimulatePage() {
     setIsSimulating(true);
     setError(null);
     setSaveToast(null);
+    setSimulationResults(null);
+    setSimulationComparison(null);
+    setAiRiskMarkdown(null);
+    setAiRiskMeta(null);
     setAiDebateCalls(null);
     setAiDebateMeta(null);
     setActiveShock(null);

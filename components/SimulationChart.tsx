@@ -163,7 +163,7 @@ export function SimulationChart({ values }: SimulationChartProps) {
           Simulation Analytics
         </h2>
         <p className="text-sm text-zinc-400">
-          Distribution view, trajectory scenarios, and risk statistics from{" "}
+          Distribution view, percentile projections, and risk statistics from{" "}
           {values.length.toLocaleString()} Monte Carlo outcomes.
         </p>
       </header>
@@ -192,7 +192,7 @@ export function SimulationChart({ values }: SimulationChartProps) {
           value={formatPercent(metrics.conditionalValueAtRisk95)}
         />
         <RiskCard
-          label="Prob. Loss > 30%"
+          label="Prob. Loss &gt; 30%"
           metric="probabilityOfLossOver30"
           value={formatPercent(metrics.probabilityOfLossOver30)}
         />
@@ -229,9 +229,10 @@ export function SimulationChart({ values }: SimulationChartProps) {
         </article>
 
         <article className="rounded-xl border border-zinc-800 bg-zinc-950/60 p-4 lg:col-span-2">
-          <h3 className="text-base font-medium text-zinc-100">Scenario Path Projection</h3>
+          <h3 className="text-base font-medium text-zinc-100">Percentile Projection</h3>
           <p className="mt-1 text-xs text-zinc-500">
-            Compounded optimistic/median/defensive outcomes from percentile returns.
+            Illustrative compounded optimistic, median, and defensive percentile-return curves.
+            These are not sampled Monte Carlo paths.
           </p>
           <div ref={pathRef} className="mt-4 h-[300px] w-full">
             {pathSize ? (

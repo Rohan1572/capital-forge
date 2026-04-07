@@ -1,13 +1,14 @@
-﻿import Link from "next/link";
+import Link from "next/link";
 import { headers } from "next/headers";
 import { notFound, redirect } from "next/navigation";
 import { MetricLabel } from "@/components/MetricLabel";
 import { RiskExplainerPanel } from "@/components/RiskExplainerPanel";
 import { SimulationChart } from "@/components/SimulationChart";
 import type { Allocation } from "@/lib/monteCarlo";
-import { runMonteCarloSimulation, runMonteCarloSimulationWithShock } from "@/lib/monteCarlo";
+
 import type { SimulationMetrics } from "@/lib/metrics";
 import type { ShockParameters } from "@/lib/shockEngine";
+import { loadReplaySeries as loadStrategyReplaySeries } from "@/lib/replaySeries";
 import { getSessionUser } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import {
@@ -28,11 +29,6 @@ type AiRiskMeta = {
     outputTokens?: number;
     totalTokens?: number;
   };
-};
-
-type StrategyReplayInfo = {
-  values: number[];
-  sourceLabel: string;
 };
 
 type StrategyRecord = {
@@ -82,15 +78,6 @@ function allocationSummary(allocation: Allocation) {
     .join(" | ");
 }
 
-function parseSimulationResults(value: unknown): number[] | null {
-  if (!Array.isArray(value)) return null;
-
-  const numbers = value.filter(
-    (entry): entry is number => typeof entry === "number" && Number.isFinite(entry),
-  );
-  return numbers.length > 0 ? numbers : null;
-}
-
 function parseShockSnapshot(value: unknown): ShockParameters | null {
   return parseShockModifiersSnapshot(value);
 }
@@ -128,58 +115,9 @@ async function loadAiRiskSummary(allocation: Allocation, metrics: SimulationMetr
   }
 }
 
-function loadReplaySeries(strategy: StrategyRecord): StrategyReplayInfo | null {
-  const savedResults = parseSimulationResults(strategy.simulationResults);
-  if (savedResults) {
-    return {
-      values: savedResults,
-      sourceLabel: "Saved simulation results",
-    };
-  }
-
-  const allocation = strategy.allocation as Allocation;
-  const assumptions = parseSimulationAssumptionsSnapshot(strategy.assumptions);
-  let seed: number | null = null;
-  if (typeof strategy.seed === "number") {
-    seed = strategy.seed;
-  } else if (typeof strategy.simulationSeed === "number") {
-    seed = strategy.simulationSeed;
-  }
-  if (seed === null) return null;
-
-  const shock = parseShockSnapshot(strategy.shockModifiers ?? strategy.simulationShock);
-  const assumptionsLabel = strategy.assumptionsVersion ?? "stored assumptions";
-  const canUseShock =
-    Boolean(shock) &&
-    (strategy.shockId !== null ||
-      strategy.simulationMode === "shocked" ||
-      strategy.shockModifiers != null ||
-      strategy.simulationShock != null);
-
-  if (canUseShock && shock) {
-    return {
-      values: runMonteCarloSimulationWithShock(
-        allocation,
-        shock,
-        assumptions?.assetReturnAssumptions,
-        assumptions?.simulationRegimes,
-        seed,
-      ),
-      sourceLabel: `Replayed from ${assumptionsLabel} with shock`,
-    };
-  }
-
-  return {
-    values: runMonteCarloSimulation(
-      allocation,
-      assumptions?.assetReturnAssumptions,
-      assumptions?.simulationRegimes,
-      seed,
-    ),
-    sourceLabel: `Replayed from ${assumptionsLabel}`,
-  };
+function loadReplaySeries(strategy: StrategyRecord) {
+  return loadStrategyReplaySeries(strategy);
 }
-
 function MetricRow({
   metric,
   label,
@@ -441,7 +379,7 @@ export default async function StrategyPage({ params }: Readonly<StrategyPageProp
   const allocation = strategy.allocation as Allocation;
   const metrics = strategy.metrics as SimulationMetrics;
   const aiRiskSummary = await loadAiRiskSummary(allocation, metrics);
-  const replaySeries = loadReplaySeries(strategy);
+  const { replaySeries, warning: replayWarning } = loadReplaySeries(strategy);
   const assumptionsSnapshot = parseSimulationAssumptionsSnapshot(strategy.assumptions);
   const shockContext = parseShockSnapshot(strategy.shockModifiers ?? strategy.simulationShock);
 
@@ -514,10 +452,15 @@ export default async function StrategyPage({ params }: Readonly<StrategyPageProp
                   <h2 className="text-lg font-semibold text-zinc-100">Return Distribution</h2>
                   <p className="text-sm text-zinc-400">
                     {replaySeries.sourceLabel} used to render the distribution histogram and
-                    scenario path.
+                    percentile projection.
                   </p>
                 </div>
               </header>
+              {replayWarning ? (
+                <div className="mt-4 rounded-lg border border-amber-500/30 bg-amber-950/30 p-4 text-sm text-amber-100">
+                  {replayWarning}
+                </div>
+              ) : null}
               <div className="mt-6">
                 <SimulationChart values={replaySeries.values} />
               </div>
@@ -529,8 +472,13 @@ export default async function StrategyPage({ params }: Readonly<StrategyPageProp
                   <h2 className="text-lg font-semibold text-zinc-100">No replay data yet</h2>
                   <p className="mt-2 max-w-2xl text-sm text-zinc-400">
                     This strategy was saved before replay artifacts were available. Run a fresh
-                    simulation to capture the full distribution and path charts.
+                    simulation to capture the full distribution and projection charts.
                   </p>
+                  {replayWarning ? (
+                    <p className="mt-3 max-w-2xl rounded-lg border border-amber-500/30 bg-amber-950/30 p-3 text-sm text-amber-100">
+                      {replayWarning}
+                    </p>
+                  ) : null}
                 </div>
                 <Link
                   href="/simulate"
