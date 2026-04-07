@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { buildGlobalMonitoringReport } from "@/lib/monitoringReport";
+import { buildMonitoringDelivery } from "@/lib/monitoring";
 
 function isAuthorized(request: Request, secretName: string, headerName: string) {
   const secret = process.env[secretName];
@@ -27,6 +28,8 @@ async function recordMonitoringAlert(
     return;
   }
 
+  const delivery = buildMonitoringDelivery(report);
+
   await prisma.auditLog
     .create({
       data: {
@@ -34,6 +37,7 @@ async function recordMonitoringAlert(
         metadata: {
           lookbackDays: report.lookbackDays,
           status: report.status,
+          delivery,
           alertCount: report.alerts.length,
           alerts: report.alerts.map((alert) => ({
             key: alert.key,
@@ -66,10 +70,11 @@ async function handleRequest(request: Request) {
     const url = new URL(request.url);
     const lookbackDays = parseLookbackDays(url.searchParams.get("days"));
     const report = await buildGlobalMonitoringReport(lookbackDays);
+    const delivery = buildMonitoringDelivery(report);
 
     await recordMonitoringAlert(report);
 
-    return NextResponse.json({ data: report });
+    return NextResponse.json({ data: { report, delivery, ...report } });
   } catch (error) {
     console.error("Failed to run monitoring cron", error);
     return NextResponse.json({ error: "Unable to run monitoring summary." }, { status: 500 });

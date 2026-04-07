@@ -49,6 +49,14 @@ export type MonitoringReport = MonitoringSummary & {
 
 export type MonitoringAssessment = Omit<MonitoringReport, "lookbackDays">;
 
+export type MonitoringDelivery = {
+  status: MonitoringReportStatus;
+  headline: string;
+  summary: string;
+  action: string;
+  alertTitles: string[];
+};
+
 export const DEFAULT_MONITORING_THRESHOLDS: MonitoringThresholds = {
   averageSimulationLatencyWarningMs: 1500,
   averageSimulationLatencyCriticalMs: 3000,
@@ -208,4 +216,48 @@ export function buildMonitoringReport(params: {
     ...report,
     lookbackDays: params.lookbackDays,
   };
+}
+
+function joinAlertTitles(alerts: MonitoringAlert[]) {
+  return alerts.map((alert) => alert.title);
+}
+
+function buildHealthyDelivery(report: MonitoringReport): MonitoringDelivery {
+  return {
+    status: report.status,
+    headline: "Monitoring is healthy",
+    summary: `No warning conditions were detected across the last ${report.lookbackDays} days.`,
+    action: "No operator action required.",
+    alertTitles: [],
+  };
+}
+
+function buildAlertDelivery(report: MonitoringReport): MonitoringDelivery {
+  const alertTitles = joinAlertTitles(report.alerts);
+  const firstAlert = report.alerts[0];
+  const secondAlert = report.alerts[1];
+  const summaryPieces = [firstAlert?.message, secondAlert?.message].filter(
+    (value): value is string => typeof value === "string",
+  );
+
+  return {
+    status: report.status,
+    headline:
+      report.status === "critical"
+        ? "Critical monitoring conditions detected"
+        : "Monitoring warning detected",
+    summary:
+      summaryPieces.length > 0
+        ? summaryPieces.join(" ")
+        : "One or more monitoring thresholds were crossed.",
+    action:
+      report.status === "critical"
+        ? "Investigate latency and AI cost drivers before the next scheduled run."
+        : "Review the warning signals and confirm whether the trend is expected.",
+    alertTitles,
+  };
+}
+
+export function buildMonitoringDelivery(report: MonitoringReport): MonitoringDelivery {
+  return report.status === "healthy" ? buildHealthyDelivery(report) : buildAlertDelivery(report);
 }

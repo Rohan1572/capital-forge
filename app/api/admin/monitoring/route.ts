@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { buildGlobalMonitoringReport } from "@/lib/monitoringReport";
+import { buildMonitoringDelivery } from "@/lib/monitoring";
 
 function isAuthorized(request: Request, secretName: string, headerName: string) {
   const secret = process.env[secretName];
@@ -25,8 +26,9 @@ export async function GET(request: Request) {
     const url = new URL(request.url);
     const lookbackDays = parseLookbackDays(url.searchParams.get("days"));
     const report = await buildGlobalMonitoringReport(lookbackDays);
+    const delivery = buildMonitoringDelivery(report);
 
-    return NextResponse.json({ data: report });
+    return NextResponse.json({ data: { report, delivery, ...report } });
   } catch (error) {
     console.error("Failed to load admin monitoring summary", error);
     return NextResponse.json({ error: "Unable to load monitoring summary." }, { status: 500 });

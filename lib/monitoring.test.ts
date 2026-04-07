@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  buildMonitoringDelivery,
   buildMonitoringReport,
   evaluateMonitoringSummary,
   summarizeMonitoringData,
@@ -63,5 +64,25 @@ describe("summarizeMonitoringData", () => {
     expect(report.lookbackDays).toBe(14);
     expect(report.status).toBe("healthy");
     expect(report.thresholds.averageSimulationLatencyWarningMs).toBeGreaterThan(0);
+  });
+
+  it("builds a concise delivery summary for alerting paths", () => {
+    const summary = summarizeMonitoringData({
+      simulationRecords: [{ durationMs: 3200 }],
+      aiRecords: [{ kind: "risk", estimatedCostUsd: 3.5, totalTokens: 1200 }],
+    });
+
+    const report = buildMonitoringReport({
+      summary,
+      lookbackDays: 30,
+    });
+
+    const delivery = buildMonitoringDelivery(report);
+
+    expect(delivery.status).toBe("critical");
+    expect(delivery.headline).toContain("Critical");
+    expect(delivery.summary).toContain("Average simulation latency");
+    expect(delivery.action).toContain("Investigate");
+    expect(delivery.alertTitles).toEqual(["Simulation latency is elevated", "AI cost is elevated"]);
   });
 });
