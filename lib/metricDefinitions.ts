@@ -1,4 +1,6 @@
 export type MetricKey =
+  | "expectedReturn"
+  | "standardDeviation"
   | "sharpeRatio"
   | "valueAtRisk5"
   | "conditionalValueAtRisk95"
@@ -6,6 +8,8 @@ export type MetricKey =
   | "probabilityOfLossOver30";
 
 export const metricDefinitions: Record<MetricKey, string> = {
+  expectedReturn: "Average simulated return across all outcomes.",
+  standardDeviation: "Spread of outcomes around the mean return.",
   sharpeRatio: "Return earned per unit of volatility. Higher is better.",
   valueAtRisk5: "Estimated loss threshold for the worst 5% of outcomes.",
   conditionalValueAtRisk95: "Average loss in the worst 5% of outcomes.",

@@ -14,6 +14,7 @@ import { getSessionUser } from "@/lib/session";
 import { requireSameOrigin } from "@/lib/requestSecurity";
 
 type StrategyPostBody = {
+  sourceStrategyId?: unknown;
   allocation?: unknown;
   metrics?: unknown;
   assumptionsVersion?: unknown;
@@ -110,6 +111,10 @@ function buildStrategyRunName(simulationMode: string | null) {
   return `${simulationMode ?? "baseline"} strategy run`;
 }
 
+function buildClonedStrategyRunName() {
+  return "cloned strategy run";
+}
+
 function buildStrategyAuditMetadata(params: {
   strategyId: string;
   allocation: Record<string, unknown>;
@@ -145,8 +150,77 @@ export async function POST(request: Request) {
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
-
     const body = (await request.json()) as StrategyPostBody;
+    const sourceStrategyId = readTrimmedString(body.sourceStrategyId);
+
+    if (sourceStrategyId) {
+      const sourceStrategy = await prisma.strategy.findFirst({
+        where: { id: sourceStrategyId, userId: user.id },
+      });
+
+      if (!sourceStrategy) {
+        return NextResponse.json({ error: "Source strategy not found." }, { status: 404 });
+      }
+
+      const clonedStrategy = await prisma.strategy.create({
+        data: {
+          userId: user.id,
+          allocation: sourceStrategy.allocation,
+          metrics: sourceStrategy.metrics,
+          assumptionsVersion: sourceStrategy.assumptionsVersion,
+          assumptions: sourceStrategy.assumptions,
+          seed: sourceStrategy.seed,
+          shockId: sourceStrategy.shockId,
+          shockModifiers: sourceStrategy.shockModifiers,
+          simulationResults: sourceStrategy.simulationResults,
+          simulationSeed: sourceStrategy.simulationSeed,
+          simulationMode: sourceStrategy.simulationMode,
+          simulationShock: sourceStrategy.simulationShock,
+        },
+      });
+
+      try {
+        await createSimulationRun({
+          userId: user.id,
+          strategyId: clonedStrategy.id,
+          name: buildClonedStrategyRunName(),
+          status: "completed",
+          assumptionsVersion: sourceStrategy.assumptionsVersion,
+          assumptions: sourceStrategy.assumptions,
+          seed: sourceStrategy.seed,
+          shockId: sourceStrategy.shockId,
+          shockModifiers: sourceStrategy.shockModifiers ?? null,
+          results: sourceStrategy.simulationResults ?? null,
+        });
+      } catch (runError) {
+        console.error("Failed to persist cloned simulation run", runError);
+      }
+
+      await prisma.auditLog.create({
+        data: {
+          userId: user.id,
+          action: "strategy.clone",
+          metadata: {
+            sourceStrategyId,
+            clonedStrategyId: clonedStrategy.id,
+          },
+        },
+      });
+
+      return NextResponse.json(
+        {
+          data: {
+            ...clonedStrategy,
+            simulationConfig: buildSimulationConfigMetadata(
+              clonedStrategy.assumptionsVersion,
+              clonedStrategy.assumptions,
+            ),
+          },
+        },
+        { status: 201 },
+      );
+    }
+
     const payload = buildStrategyPayload(user.id, body);
     if ("error" in payload) {
       return payload.error;
@@ -219,7 +293,6 @@ export async function GET() {
     const strategies = await prisma.strategy.findMany({
       where: { userId: user.id },
       orderBy: { createdAt: "desc" },
-      take: 20,
     });
 
     return NextResponse.json({

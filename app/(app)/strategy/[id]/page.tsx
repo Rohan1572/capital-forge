@@ -1,14 +1,16 @@
-import Link from "next/link";
+﻿import Link from "next/link";
 import { headers } from "next/headers";
 import { notFound, redirect } from "next/navigation";
 import { MetricLabel } from "@/components/MetricLabel";
 import { RiskExplainerPanel } from "@/components/RiskExplainerPanel";
+import { StrategyActionsPanel } from "@/components/StrategyActionsPanel";
 import { SimulationChart } from "@/components/SimulationChart";
 import type { Allocation } from "@/lib/monteCarlo";
 
 import type { SimulationMetrics } from "@/lib/metrics";
 import type { ShockParameters } from "@/lib/shockEngine";
 import { loadReplaySeries as loadStrategyReplaySeries } from "@/lib/replaySeries";
+import { buildStrategyCardSubtitle, buildStrategyDisplayLabel } from "@/lib/strategyPresentation";
 import { getSessionUser } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import {
@@ -62,10 +64,6 @@ function formatMultiplier(value: number) {
 
 function formatNumber(value: number) {
   return value.toFixed(3);
-}
-
-function formatDate(value: Date) {
-  return value.toLocaleString("en-US", { dateStyle: "medium", timeStyle: "short" });
 }
 
 function formatAssetName(asset: string) {
@@ -124,6 +122,8 @@ function MetricRow({
   value,
 }: Readonly<{
   metric:
+    | "expectedReturn"
+    | "standardDeviation"
     | "sharpeRatio"
     | "maxDrawdown"
     | "valueAtRisk5"
@@ -329,6 +329,16 @@ function MetricsSidebar({ metrics }: Readonly<{ metrics: SimulationMetrics }>) {
       <h2 className="text-sm uppercase tracking-wide text-zinc-500">Metrics at a Glance</h2>
       <div className="mt-4 space-y-2">
         <MetricRow
+          metric="expectedReturn"
+          label="Expected Return"
+          value={formatPercent(metrics.expectedReturn)}
+        />
+        <MetricRow
+          metric="standardDeviation"
+          label="Volatility"
+          value={formatPercent(metrics.standardDeviation)}
+        />
+        <MetricRow
           metric="sharpeRatio"
           label="Sharpe Ratio"
           value={formatNumber(metrics.sharpeRatio)}
@@ -382,6 +392,8 @@ export default async function StrategyPage({ params }: Readonly<StrategyPageProp
   const { replaySeries, warning: replayWarning } = loadReplaySeries(strategy);
   const assumptionsSnapshot = parseSimulationAssumptionsSnapshot(strategy.assumptions);
   const shockContext = parseShockSnapshot(strategy.shockModifiers ?? strategy.simulationShock);
+  const strategyDisplayLabel = buildStrategyDisplayLabel(strategy);
+  const strategySubtitle = buildStrategyCardSubtitle(strategy);
 
   return (
     <>
@@ -399,10 +411,8 @@ export default async function StrategyPage({ params }: Readonly<StrategyPageProp
 
       <header className="flex flex-wrap items-start justify-between gap-4">
         <div className="space-y-2">
-          <h1 className="text-3xl font-semibold">Strategy Snapshot</h1>
-          <p className="text-zinc-400">
-            Simulation run on {formatDate(strategy.createdAt)} | ID {strategy.id}
-          </p>
+          <h1 className="text-3xl font-semibold">{strategyDisplayLabel}</h1>
+          <p className="text-zinc-400">{strategySubtitle}</p>
         </div>
         <Link
           href="/strategies"
@@ -411,6 +421,24 @@ export default async function StrategyPage({ params }: Readonly<StrategyPageProp
           Back to History
         </Link>
       </header>
+
+      <StrategyActionsPanel
+        strategy={{
+          id: strategy.id,
+          createdAt: strategy.createdAt.toISOString(),
+          allocation,
+          metrics,
+          assumptionsVersion: strategy.assumptionsVersion,
+          assumptions: strategy.assumptions,
+          seed: strategy.seed,
+          shockId: strategy.shockId,
+          shockModifiers: strategy.shockModifiers,
+          simulationResults: strategy.simulationResults,
+          simulationSeed: strategy.simulationSeed,
+          simulationMode: strategy.simulationMode,
+          simulationShock: strategy.simulationShock,
+        }}
+      />
 
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
         <div className="space-y-6">
