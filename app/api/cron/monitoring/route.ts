@@ -5,7 +5,10 @@ import { buildGlobalMonitoringReport } from "@/lib/monitoringReport";
 function isAuthorized(request: Request, secretName: string, headerName: string) {
   const secret = process.env[secretName];
   if (!secret) return false;
-  return request.headers.get(headerName) === secret;
+  return (
+    request.headers.get(headerName) === secret ||
+    request.headers.get("authorization") === `Bearer ${secret}`
+  );
 }
 
 function parseLookbackDays(value: string | null) {
@@ -54,7 +57,7 @@ async function recordMonitoringAlert(
     });
 }
 
-export async function POST(request: Request) {
+async function handleRequest(request: Request) {
   if (!isAuthorized(request, "CRON_SECRET", "x-cron-secret")) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
@@ -71,4 +74,12 @@ export async function POST(request: Request) {
     console.error("Failed to run monitoring cron", error);
     return NextResponse.json({ error: "Unable to run monitoring summary." }, { status: 500 });
   }
+}
+
+export async function GET(request: Request) {
+  return handleRequest(request);
+}
+
+export async function POST(request: Request) {
+  return handleRequest(request);
 }
