@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { StatePanel } from "@/components/StatePanel";
 
 type SimulationRun = {
   id: string;
@@ -63,18 +64,36 @@ export function RecentSimulationRunsWidget({ take = 5 }: RecentSimulationRunsWid
   }, [take]);
 
   const content = (() => {
-    if (runs === null) {
+    if (runs === null && error === null) {
       return (
-        <div className="mt-4 space-y-3">
-          <div className="h-16 animate-pulse rounded-lg border border-zinc-800 bg-zinc-950/50" />
-          <div className="h-16 animate-pulse rounded-lg border border-zinc-800 bg-zinc-950/50" />
-          <div className="h-16 animate-pulse rounded-lg border border-zinc-800 bg-zinc-950/50" />
-        </div>
+        <StatePanel
+          tone="loading"
+          title="Loading recent runs"
+          description="Fetching the latest saved simulations."
+          className="mt-4"
+        >
+          <div className="space-y-3">
+            <div className="h-16 animate-pulse rounded-lg border border-zinc-800 bg-zinc-950/50" />
+            <div className="h-16 animate-pulse rounded-lg border border-zinc-800 bg-zinc-950/50" />
+            <div className="h-16 animate-pulse rounded-lg border border-zinc-800 bg-zinc-950/50" />
+          </div>
+        </StatePanel>
       );
     }
 
+    if (runs === null) {
+      return null;
+    }
+
     if (runs.length === 0) {
-      return <p className="mt-4 text-sm text-zinc-400">No runs have been saved yet.</p>;
+      return (
+        <StatePanel
+          tone="empty"
+          title="No runs saved yet"
+          description="Run a simulation and save it to keep a history of your portfolio experiments."
+          className="mt-4"
+        />
+      );
     }
 
     return (
@@ -121,7 +140,10 @@ export function RecentSimulationRunsWidget({ take = 5 }: RecentSimulationRunsWid
   })();
 
   return (
-    <section className="rounded-xl border border-zinc-800 bg-zinc-900/80 p-5">
+    <section
+      aria-busy={runs === null && error === null ? "true" : undefined}
+      className="rounded-xl border border-zinc-800 bg-zinc-900/80 p-5"
+    >
       <div className="flex items-start justify-between gap-4">
         <div>
           <h2 className="text-sm uppercase tracking-wide text-zinc-500">Recent Simulation Runs</h2>
@@ -136,9 +158,12 @@ export function RecentSimulationRunsWidget({ take = 5 }: RecentSimulationRunsWid
       </div>
 
       {error ? (
-        <p className="mt-4 rounded-lg border border-rose-500/30 bg-rose-950/20 px-3 py-2 text-sm text-rose-200">
-          {error}
-        </p>
+        <StatePanel
+          tone="error"
+          title="Unable to load recent runs"
+          description={error}
+          className="mt-4"
+        />
       ) : null}
       {content}
     </section>

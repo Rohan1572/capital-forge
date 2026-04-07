@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { StatePanel } from "@/components/StatePanel";
 
 type MonitoringAlert = {
   key: "simulation-latency" | "ai-cost";
@@ -190,9 +191,12 @@ function MonitoringErrorBanner({ error }: Readonly<{ error: string | null }>) {
   if (!error) return null;
 
   return (
-    <p className="mt-4 rounded-lg border border-rose-500/30 bg-rose-950/20 px-3 py-2 text-sm text-rose-200">
-      {error}
-    </p>
+    <StatePanel
+      tone="error"
+      title="Unable to load monitoring summary"
+      description={error}
+      className="mt-4"
+    />
   );
 }
 
@@ -210,10 +214,17 @@ function MonitoringDeliveryPanel({ delivery }: Readonly<{ delivery: MonitoringDe
 
 function MonitoringLoadingState() {
   return (
-    <div className="mt-4 space-y-3">
-      <div className="h-16 animate-pulse rounded-lg border border-zinc-800 bg-zinc-950/50" />
-      <div className="h-16 animate-pulse rounded-lg border border-zinc-800 bg-zinc-950/50" />
-    </div>
+    <StatePanel
+      tone="loading"
+      title="Loading monitoring summary"
+      description="Fetching simulation latency and AI cost data for the selected window."
+      className="mt-4"
+    >
+      <div className="space-y-3">
+        <div className="h-16 animate-pulse rounded-lg border border-zinc-800 bg-zinc-950/50" />
+        <div className="h-16 animate-pulse rounded-lg border border-zinc-800 bg-zinc-950/50" />
+      </div>
+    </StatePanel>
   );
 }
 
@@ -299,6 +310,7 @@ export function MonitoringWidget({ days = 30 }: MonitoringWidgetProps) {
   const [error, setError] = useState<string | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [lastRefreshedAt, setLastRefreshedAt] = useState<Date | null>(null);
+  const shouldShowLoadingState = report === null && error === null;
 
   const refreshMonitoringSummary = useCallback(
     async (shouldApplyState: () => boolean = () => true) => {
@@ -340,7 +352,10 @@ export function MonitoringWidget({ days = 30 }: MonitoringWidgetProps) {
   }, [refreshMonitoringSummary]);
 
   return (
-    <section className="rounded-xl border border-zinc-800 bg-zinc-900/80 p-5">
+    <section
+      aria-busy={shouldShowLoadingState ? "true" : undefined}
+      className="rounded-xl border border-zinc-800 bg-zinc-900/80 p-5"
+    >
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <h2 className="text-sm uppercase tracking-wide text-zinc-500">Monitoring</h2>
@@ -366,7 +381,8 @@ export function MonitoringWidget({ days = 30 }: MonitoringWidgetProps) {
 
       <MonitoringErrorBanner error={error} />
       <MonitoringDeliveryPanel delivery={delivery} />
-      {report === null ? <MonitoringLoadingState /> : <MonitoringReportCards report={report} />}
+      {shouldShowLoadingState ? <MonitoringLoadingState /> : null}
+      {report ? <MonitoringReportCards report={report} /> : null}
     </section>
   );
 }

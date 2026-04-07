@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 const STORAGE_KEY = "capital-forge:onboarding-seen:v1";
 
@@ -105,12 +105,34 @@ function getStoredSeenFlag() {
   return globalThis.window.localStorage.getItem(STORAGE_KEY) === "true";
 }
 
+function getFocusableElements(container: HTMLElement | null) {
+  if (!container) return [];
+
+  return Array.from(
+    container.querySelectorAll<HTMLElement>(
+      [
+        "button:not([disabled])",
+        "[href]",
+        "input:not([disabled])",
+        "select:not([disabled])",
+        "textarea:not([disabled])",
+        '[tabindex]:not([tabindex="-1"])',
+      ].join(","),
+    ),
+  ).filter((element) => element.offsetParent !== null);
+}
+
 export function AppGuide() {
   const [isReady, setIsReady] = useState(false);
   const [hasSeenOnboarding, setHasSeenOnboarding] = useState(true);
   const [isOnboardingOpen, setIsOnboardingOpen] = useState(false);
   const [isGlossaryOpen, setIsGlossaryOpen] = useState(false);
   const [stepIndex, setStepIndex] = useState(0);
+  const onboardingDialogRef = useRef<HTMLDialogElement | null>(null);
+  const glossaryDrawerRef = useRef<HTMLDialogElement | null>(null);
+  const onboardingCloseButtonRef = useRef<HTMLButtonElement | null>(null);
+  const glossaryCloseButtonRef = useRef<HTMLButtonElement | null>(null);
+  const lastFocusedElementRef = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
     const seen = getStoredSeenFlag();
@@ -124,30 +146,122 @@ export function AppGuide() {
   }, []);
 
   useEffect(() => {
+    if (!isOnboardingOpen && !isGlossaryOpen) return;
+
+    const body = globalThis.document.body;
+    const previousOverflow = body.style.overflow;
+    body.style.overflow = "hidden";
+
+    return () => {
+      body.style.overflow = previousOverflow;
+    };
+  }, [isOnboardingOpen, isGlossaryOpen]);
+
+  useEffect(() => {
+    if (isOnboardingOpen) {
+      onboardingCloseButtonRef.current?.focus();
+    }
+  }, [isOnboardingOpen]);
+
+  useEffect(() => {
+    if (isGlossaryOpen) {
+      glossaryCloseButtonRef.current?.focus();
+    }
+  }, [isGlossaryOpen]);
+
+  useEffect(() => {
     if (globalThis.window === undefined || !isReady) return;
     globalThis.window.localStorage.setItem(STORAGE_KEY, hasSeenOnboarding ? "true" : "false");
   }, [hasSeenOnboarding, isReady]);
 
-  const currentStep = useMemo(() => onboardingSteps[stepIndex], [stepIndex]);
+  const currentStep = useMemo(
+    () => onboardingSteps.at(stepIndex) ?? onboardingSteps[0],
+    [stepIndex],
+  );
 
   function openTour() {
+    lastFocusedElementRef.current =
+      document.activeElement instanceof HTMLElement ? document.activeElement : null;
     setStepIndex(0);
+    setIsGlossaryOpen(false);
     setIsOnboardingOpen(true);
   }
 
   function openGlossary() {
+    lastFocusedElementRef.current =
+      document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    setIsOnboardingOpen(false);
     setIsGlossaryOpen(true);
   }
 
   function closeTour() {
     setIsOnboardingOpen(false);
     setHasSeenOnboarding(true);
+    lastFocusedElementRef.current?.focus();
+    lastFocusedElementRef.current = null;
   }
 
   function finishTour() {
-    setIsOnboardingOpen(false);
     setHasSeenOnboarding(true);
+    closeTour();
   }
+
+  function closeGlossary() {
+    setIsGlossaryOpen(false);
+    lastFocusedElementRef.current?.focus();
+    lastFocusedElementRef.current = null;
+  }
+
+  useEffect(() => {
+    if (!isOnboardingOpen && !isGlossaryOpen) return;
+
+    function handleKeyDown(event: globalThis.KeyboardEvent) {
+      const activeOverlay = isOnboardingOpen
+        ? onboardingDialogRef.current
+        : glossaryDrawerRef.current;
+      if (!activeOverlay) return;
+
+      if (event.key === "Escape") {
+        event.preventDefault();
+        if (isOnboardingOpen) {
+          closeTour();
+        } else {
+          closeGlossary();
+        }
+        return;
+      }
+
+      if (event.key !== "Tab") return;
+
+      const focusableElements = getFocusableElements(activeOverlay);
+      if (focusableElements.length === 0) {
+        event.preventDefault();
+        activeOverlay.focus();
+        return;
+      }
+
+      const firstElement = focusableElements[0];
+      const lastElement = focusableElements.at(-1);
+      if (!lastElement) return;
+      const currentElement = document.activeElement;
+
+      if (event.shiftKey) {
+        if (currentElement === firstElement || !activeOverlay.contains(currentElement)) {
+          event.preventDefault();
+          lastElement.focus();
+        }
+        return;
+      }
+
+      if (currentElement === lastElement) {
+        event.preventDefault();
+        firstElement.focus();
+      }
+    }
+
+    globalThis.document.addEventListener("keydown", handleKeyDown);
+    return () => globalThis.document.removeEventListener("keydown", handleKeyDown);
+  }, [isOnboardingOpen, isGlossaryOpen]);
 
   return (
     <>
@@ -169,23 +283,39 @@ export function AppGuide() {
       </div>
 
       {isOnboardingOpen ? (
-        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/70 px-4 py-6 backdrop-blur-sm sm:items-center">
-          <div className="w-full max-w-2xl rounded-2xl border border-zinc-800 bg-zinc-950 p-6 shadow-2xl shadow-black/40">
+        <dialog
+          ref={onboardingDialogRef}
+          open
+          aria-modal="true"
+          aria-labelledby="onboarding-title"
+          aria-describedby="onboarding-description"
+          tabIndex={-1}
+          className="relative fixed inset-0 z-50 flex items-end justify-center bg-black/70 px-4 py-6 backdrop-blur-sm sm:items-center"
+        >
+          <button
+            type="button"
+            aria-label="Close onboarding"
+            tabIndex={-1}
+            onClick={closeTour}
+            className="absolute inset-0 z-0 h-full w-full cursor-default border-0 bg-transparent"
+          />
+          <div className="relative z-10 w-full max-w-2xl rounded-2xl border border-zinc-800 bg-zinc-950 p-6 shadow-2xl shadow-black/40 outline-none">
             <div className="flex items-start justify-between gap-4">
               <div>
                 <p className="text-xs uppercase tracking-[0.18em] text-amber-300">
                   First run guide
                 </p>
-                <h2 className="mt-2 text-2xl font-semibold text-zinc-100">
+                <h2 id="onboarding-title" className="mt-2 text-2xl font-semibold text-zinc-100">
                   Welcome to CapitalForge
                 </h2>
-                <p className="mt-2 text-sm text-zinc-400">
+                <p id="onboarding-description" className="mt-2 text-sm text-zinc-400">
                   A quick walkthrough of how to move from allocation to analysis to comparison.
                 </p>
               </div>
               <button
                 type="button"
                 onClick={closeTour}
+                ref={onboardingCloseButtonRef}
                 className="rounded-full border border-zinc-700 px-3 py-1 text-xs text-zinc-300 transition hover:border-zinc-500 hover:text-zinc-100"
               >
                 Skip
@@ -249,29 +379,38 @@ export function AppGuide() {
               </div>
             </div>
           </div>
-        </div>
+        </dialog>
       ) : null}
 
       {isGlossaryOpen ? (
-        <div className="fixed inset-0 z-50 bg-black/55 backdrop-blur-sm">
+        <dialog
+          ref={glossaryDrawerRef}
+          open
+          aria-modal="true"
+          aria-labelledby="glossary-title"
+          tabIndex={-1}
+          className="relative fixed inset-0 z-50 bg-black/55 backdrop-blur-sm"
+        >
           <button
             type="button"
-            aria-label="Close glossary drawer"
-            onClick={() => setIsGlossaryOpen(false)}
-            className="absolute inset-0 h-full w-full cursor-default"
+            aria-label="Close glossary"
+            tabIndex={-1}
+            onClick={closeGlossary}
+            className="absolute inset-0 z-0 h-full w-full cursor-default border-0 bg-transparent"
           />
-          <aside className="absolute right-0 top-0 h-full w-full max-w-xl overflow-y-auto border-l border-zinc-800 bg-zinc-950 shadow-2xl shadow-black/40">
+          <aside className="absolute right-0 top-0 z-10 h-full w-full max-w-xl overflow-y-auto border-l border-zinc-800 bg-zinc-950 shadow-2xl shadow-black/40 outline-none">
             <div className="sticky top-0 border-b border-zinc-800 bg-zinc-950/95 px-6 py-5 backdrop-blur">
               <div className="flex items-start justify-between gap-4">
                 <div>
                   <p className="text-xs uppercase tracking-[0.18em] text-cyan-300">Glossary</p>
-                  <h2 className="mt-2 text-2xl font-semibold text-zinc-50">
+                  <h2 id="glossary-title" className="mt-2 text-2xl font-semibold text-zinc-50">
                     Metrics and assumptions in plain language
                   </h2>
                 </div>
                 <button
                   type="button"
-                  onClick={() => setIsGlossaryOpen(false)}
+                  onClick={closeGlossary}
+                  ref={glossaryCloseButtonRef}
                   className="rounded-full border border-zinc-700 px-3 py-1 text-xs text-zinc-300 transition hover:border-zinc-500 hover:text-zinc-100"
                 >
                   Close
@@ -303,7 +442,7 @@ export function AppGuide() {
               ))}
             </div>
           </aside>
-        </div>
+        </dialog>
       ) : null}
     </>
   );

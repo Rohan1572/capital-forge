@@ -605,7 +605,12 @@ function SimulatingPanel({ isSimulating }: Readonly<{ isSimulating: boolean }>) 
   if (!isSimulating) return null;
 
   return (
-    <section className="rounded-xl border border-zinc-800 bg-zinc-900/80 p-6">
+    <section
+      aria-busy="true"
+      aria-live="polite"
+      role="status"
+      className="rounded-xl border border-zinc-800 bg-zinc-900/80 p-6"
+    >
       <p className="text-sm text-zinc-300">Simulating 10,000 market paths...</p>
       <div className="mt-4 space-y-4">
         <SkeletonBlock className="h-56 w-full" />

@@ -4,6 +4,7 @@ import { Fragment, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { SkeletonBlock, SkeletonStack } from "@/components/LoadingSkeleton";
+import { StatePanel } from "@/components/StatePanel";
 import { MetricLabel } from "@/components/MetricLabel";
 
 type LeaderboardMetrics = {
@@ -315,39 +316,36 @@ export default function LeaderboardPage() {
       </header>
 
       {isLoading ? (
-        <section className="rounded-xl border border-zinc-800 bg-zinc-900/80 p-6">
-          <p className="text-sm text-zinc-300">Loading leaderboard...</p>
+        <StatePanel
+          tone="loading"
+          title="Loading leaderboard"
+          description="Fetching rankings, season context, and allocation details."
+        >
           <div className="mt-4 space-y-4">
             <SkeletonBlock className="h-14" />
             <SkeletonStack rows={6} />
           </div>
-        </section>
+        </StatePanel>
       ) : null}
 
       {error ? (
-        <section className="rounded-xl border border-rose-500/40 bg-rose-950/30 p-6 text-rose-200">
-          {error}
-        </section>
+        <StatePanel tone="error" title="Unable to load leaderboard" description={error} />
       ) : null}
 
       {!isLoading && entries.length === 0 ? (
-        <section className="rounded-xl border border-zinc-800 bg-zinc-900/80 p-6 text-zinc-300">
-          <div className="flex flex-wrap items-center justify-between gap-4">
-            <div>
-              <h2 className="text-lg font-semibold text-zinc-100">No leaderboard entries yet</h2>
-              <p className="mt-2 max-w-2xl text-sm text-zinc-400">
-                Run a simulation and save it to enter the rankings. Scores update after your
-                strategies are stored.
-              </p>
-            </div>
+        <StatePanel
+          tone="empty"
+          title="No leaderboard entries yet"
+          description="Run a simulation and save it to enter the rankings. Scores update after your strategies are stored."
+          actions={
             <Link
               href="/simulate"
               className="rounded-full border border-amber-400/50 bg-amber-400/10 px-4 py-2 text-sm font-medium text-amber-100 transition hover:border-amber-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-900"
             >
               Run a simulation
             </Link>
-          </div>
-        </section>
+          }
+        />
       ) : null}
 
       {!isLoading && entries.length > 0 ? (

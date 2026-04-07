@@ -1,10 +1,11 @@
-﻿"use client";
+"use client";
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { SkeletonBlock, SkeletonStack } from "@/components/LoadingSkeleton";
 import { MetricLabel } from "@/components/MetricLabel";
+import { StatePanel } from "@/components/StatePanel";
 import type { Allocation } from "@/lib/monteCarlo";
 import type { SimulationMetrics } from "@/lib/metrics";
 import {
@@ -77,7 +78,7 @@ function formatDate(value: string) {
 function allocationSummary(allocation: Allocation) {
   return Object.entries(allocation)
     .map(([key, value]) => `${key}: ${value}%`)
-    .join(" · ");
+    .join(" | ");
 }
 
 function sortStrategies(strategies: StrategyRecord[], sortKey: SortKey) {
@@ -349,28 +350,28 @@ export default function StrategyHistoryPage() {
       </section>
 
       {error ? (
-        <section className="rounded-xl border border-rose-500/40 bg-rose-950/30 p-4 text-sm text-rose-200">
-          {error}
-        </section>
+        <StatePanel tone="error" title="Unable to load strategy history" description={error} />
       ) : null}
 
       {isLoading ? (
-        <section className="rounded-xl border border-zinc-800 bg-zinc-900/80 p-6">
-          <p className="text-sm text-zinc-300">Loading strategy history...</p>
+        <StatePanel
+          tone="loading"
+          title="Loading strategy history"
+          description="Fetching saved strategies and comparison summaries."
+        >
           <div className="mt-4 space-y-4">
             <SkeletonBlock className="h-40" />
             <SkeletonStack rows={4} />
           </div>
-        </section>
+        </StatePanel>
       ) : null}
 
       {!isLoading && strategies.length === 0 ? (
-        <section className="rounded-xl border border-zinc-800 bg-zinc-900/80 p-6 text-zinc-300">
-          <h2 className="text-lg font-semibold text-zinc-100">No saved strategies yet</h2>
-          <p className="mt-2 max-w-2xl text-sm text-zinc-400">
-            Run a simulation and save it to track the full history of your portfolio experiments.
-          </p>
-        </section>
+        <StatePanel
+          tone="empty"
+          title="No saved strategies yet"
+          description="Run a simulation and save it to track the full history of your portfolio experiments."
+        />
       ) : null}
 
       {comparison ? (
