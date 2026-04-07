@@ -1,4 +1,4 @@
-﻿import { expect, test } from "@playwright/test";
+import { expect, test } from "@playwright/test";
 
 type LeaderboardPayload = {
   data: Array<{
@@ -35,14 +35,21 @@ type LeaderboardPayload = {
 function buildLeaderboardPayload(
   month: string,
   shock: { id: string; title: string },
+  page: number,
 ): LeaderboardPayload {
-  const rankLabel = month === "2026-03" ? "March Runner" : "April Runner";
+  const isFirstPage = page === 1;
+  const rank = isFirstPage ? 1 : 26;
+  let name = "Second Page Runner";
+
+  if (isFirstPage) {
+    name = month === "2026-03" ? "March Runner" : "April Runner";
+  }
 
   return {
     data: [
       {
-        id: `${month}-strategy`,
-        name: rankLabel,
+        id: `${month}-strategy-page-${page}`,
+        name,
         allocation: { Equity: 35, Bonds: 35, Cash: 30 },
         metrics: {
           expectedReturn: month === "2026-03" ? 0.14 : 0.16,
@@ -52,7 +59,7 @@ function buildLeaderboardPayload(
           conditionalValueAtRisk95: month === "2026-03" ? -0.12 : -0.1,
         },
         createdAt: `${month}-02T12:00:00.000Z`,
-        rank: 1,
+        rank,
       },
     ],
     month,
@@ -62,10 +69,10 @@ function buildLeaderboardPayload(
     },
     activeShock: shock,
     pagination: {
-      page: 1,
+      page,
       pageSize: 25,
-      total: 1,
-      totalPages: 1,
+      total: 26,
+      totalPages: 2,
     },
   };
 }
@@ -108,6 +115,7 @@ test("leaderboard month navigation and shock context remain visible", async ({ p
   await page.route("**/api/leaderboard**", async (route) => {
     const url = new URL(route.request().url());
     const month = url.searchParams.get("month") ?? "2026-04";
+    const pageNumber = Number.parseInt(url.searchParams.get("page") ?? "1", 10);
     const shock =
       month === "2026-03"
         ? { id: "shock-mar-2026", title: "March Shock" }
@@ -116,7 +124,7 @@ test("leaderboard month navigation and shock context remain visible", async ({ p
     await route.fulfill({
       status: 200,
       contentType: "application/json",
-      body: JSON.stringify(buildLeaderboardPayload(month, shock)),
+      body: JSON.stringify(buildLeaderboardPayload(month, shock, pageNumber)),
     });
   });
 
@@ -150,6 +158,8 @@ test("leaderboard month navigation and shock context remain visible", async ({ p
   );
 
   await page.getByRole("button", { name: "Previous month" }).click();
+  await expect(page).toHaveURL(/month=2026-03/);
+  await expect(page).toHaveURL(/page=1/);
   await expect(page.getByLabel("Month")).toHaveValue("2026-03");
   await expect(page.getByText("Current cycle: 2026-04", { exact: true })).toBeVisible();
   await expect(viewingMonthCard).toContainText("March 2026");
@@ -158,8 +168,18 @@ test("leaderboard month navigation and shock context remain visible", async ({ p
   await expect(page.getByRole("row").filter({ hasText: "March Runner" }).first()).toContainText(
     "#1",
   );
+  await expect(page.getByRole("button", { name: /^Next$/ })).toBeEnabled();
+
+  await page.getByRole("button", { name: /^Next$/ }).click();
+  await expect(page).toHaveURL(/month=2026-03/);
+  await expect(page).toHaveURL(/page=2/);
+  await expect(
+    page.getByRole("row").filter({ hasText: "Second Page Runner" }).first(),
+  ).toContainText("#26");
 
   await page.getByRole("button", { name: "Next month" }).click();
+  await expect(page).toHaveURL(/month=2026-04/);
+  await expect(page).toHaveURL(/page=1/);
   await expect(page.getByLabel("Month")).toHaveValue("2026-04");
   await expect(viewingMonthCard).toContainText("April 2026");
   await expect(shockContextCard).toContainText("April Shock");

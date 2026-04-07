@@ -1,4 +1,4 @@
-﻿import { NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import {
   buildLeaderboardMonthRange,
@@ -8,11 +8,11 @@ import {
 import { getActiveShock } from "@/lib/shocks";
 
 type StrategyMetrics = {
-  expectedReturn?: number;
-  sharpeRatio?: number;
-  maxDrawdown?: number;
-  valueAtRisk5?: number;
-  conditionalValueAtRisk95?: number;
+  expectedReturn: number | null;
+  sharpeRatio: number | null;
+  maxDrawdown: number | null;
+  valueAtRisk5: number | null;
+  conditionalValueAtRisk95: number | null;
 };
 
 type LeaderboardEntry = {
@@ -48,8 +48,8 @@ type LeaderboardSeasonSummary = {
   currentMonth: string;
 };
 
-function toNumber(value: unknown, fallback: number): number {
-  return typeof value === "number" && Number.isFinite(value) ? value : fallback;
+function toMetricNumber(value: unknown): number | null {
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
 }
 
 function getName(user: UserSummary): string {
@@ -59,19 +59,20 @@ function getName(user: UserSummary): string {
 }
 
 function compareStrategies(a: LeaderboardEntry, b: LeaderboardEntry) {
-  const sharpeA = toNumber(a.metrics.sharpeRatio, -Infinity);
-  const sharpeB = toNumber(b.metrics.sharpeRatio, -Infinity);
+  const sharpeA = a.metrics.sharpeRatio ?? -Infinity;
+  const sharpeB = b.metrics.sharpeRatio ?? -Infinity;
   if (sharpeA !== sharpeB) return sharpeB - sharpeA;
 
-  const drawdownA = toNumber(a.metrics.maxDrawdown, Infinity);
-  const drawdownB = toNumber(b.metrics.maxDrawdown, Infinity);
+  const drawdownA = a.metrics.maxDrawdown ?? Infinity;
+  const drawdownB = b.metrics.maxDrawdown ?? Infinity;
   if (drawdownA !== drawdownB) return drawdownA - drawdownB;
 
-  const varA = toNumber(a.metrics.valueAtRisk5, Infinity);
-  const varB = toNumber(b.metrics.valueAtRisk5, Infinity);
+  const varA = a.metrics.valueAtRisk5 ?? Infinity;
+  const varB = b.metrics.valueAtRisk5 ?? Infinity;
   if (varA !== varB) return varA - varB;
 
-  return a.createdAt.localeCompare(b.createdAt);
+  if (a.createdAt !== b.createdAt) return a.createdAt.localeCompare(b.createdAt);
+  return a.id.localeCompare(b.id);
 }
 
 function parsePositiveInt(value: string | null, fallback: number) {
@@ -82,14 +83,23 @@ function parsePositiveInt(value: string | null, fallback: number) {
 }
 
 function normalizeMetrics(metrics: unknown): StrategyMetrics {
-  if (!metrics || typeof metrics !== "object") return {};
+  if (!metrics || typeof metrics !== "object") {
+    return {
+      expectedReturn: null,
+      sharpeRatio: null,
+      maxDrawdown: null,
+      valueAtRisk5: null,
+      conditionalValueAtRisk95: null,
+    };
+  }
+
   const record = metrics as Record<string, unknown>;
   return {
-    expectedReturn: toNumber(record.expectedReturn, 0),
-    sharpeRatio: toNumber(record.sharpeRatio, 0),
-    maxDrawdown: toNumber(record.maxDrawdown, 0),
-    valueAtRisk5: toNumber(record.valueAtRisk5, 0),
-    conditionalValueAtRisk95: toNumber(record.conditionalValueAtRisk95, 0),
+    expectedReturn: toMetricNumber(record.expectedReturn),
+    sharpeRatio: toMetricNumber(record.sharpeRatio),
+    maxDrawdown: toMetricNumber(record.maxDrawdown),
+    valueAtRisk5: toMetricNumber(record.valueAtRisk5),
+    conditionalValueAtRisk95: toMetricNumber(record.conditionalValueAtRisk95),
   };
 }
 
@@ -129,8 +139,6 @@ export async function GET(request: Request) {
             lt: monthRange.end,
           },
         },
-        skip,
-        take: pageSize,
       }),
     ]);
 
@@ -157,12 +165,12 @@ export async function GET(request: Request) {
       };
     });
 
-    entries.sort(compareStrategies);
-
-    const ranked = entries.map((entry, index) => ({
+    const sortedEntries = entries.toSorted(compareStrategies);
+    const ranked = sortedEntries.map((entry, index) => ({
       ...entry,
       rank: index + 1,
     }));
+    const pagedRanked = ranked.slice(skip, skip + pageSize);
 
     await prisma.auditLog.create({
       data: {
@@ -191,7 +199,7 @@ export async function GET(request: Request) {
     };
 
     return NextResponse.json({
-      data: ranked,
+      data: pagedRanked,
       month: monthRange.label,
       season: seasonSummary,
       activeShock: activeShockSummary,

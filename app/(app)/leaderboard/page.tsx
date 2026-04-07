@@ -7,11 +7,11 @@ import { SkeletonBlock, SkeletonStack } from "@/components/LoadingSkeleton";
 import { MetricLabel } from "@/components/MetricLabel";
 
 type LeaderboardMetrics = {
-  expectedReturn?: number;
-  sharpeRatio?: number;
-  maxDrawdown?: number;
-  valueAtRisk5?: number;
-  conditionalValueAtRisk95?: number;
+  expectedReturn: number | null;
+  sharpeRatio: number | null;
+  maxDrawdown: number | null;
+  valueAtRisk5: number | null;
+  conditionalValueAtRisk95: number | null;
 };
 
 type LeaderboardEntry = {
@@ -40,13 +40,13 @@ type LeaderboardSeasonSummary = {
   currentMonth: string;
 };
 
-function formatPercent(value?: number) {
-  if (typeof value !== "number") return "--";
+function formatPercent(value?: number | null) {
+  if (typeof value !== "number" || !Number.isFinite(value)) return "--";
   return `${(value * 100).toFixed(2)}%`;
 }
 
-function formatNumber(value?: number) {
-  if (typeof value !== "number") return "--";
+function formatNumber(value?: number | null) {
+  if (typeof value !== "number" || !Number.isFinite(value)) return "--";
   return value.toFixed(3);
 }
 
@@ -105,6 +105,13 @@ function isMonthLabel(value: string): value is `${number}-${number}` {
   return /^\d{4}-\d{2}$/.test(value);
 }
 
+function parsePositiveInt(value: string | null, fallback: number) {
+  if (!value) return fallback;
+  const parsed = Number.parseInt(value, 10);
+  if (!Number.isFinite(parsed) || parsed <= 0) return fallback;
+  return parsed;
+}
+
 function shiftMonth(monthLabel: string, offset: number) {
   if (!isMonthLabel(monthLabel)) return getCurrentMonthLabel();
 
@@ -129,6 +136,9 @@ function toMonthHeaderLabel(monthLabel: string) {
 export default function LeaderboardPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const urlMonth = searchParams.get("month");
+  const month = urlMonth && isMonthLabel(urlMonth) ? urlMonth : null;
+  const page = parsePositiveInt(searchParams.get("page"), 1);
   const [entries, setEntries] = useState<LeaderboardEntry[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -141,16 +151,6 @@ export default function LeaderboardPage() {
   });
   const [activeShock, setActiveShock] = useState<ActiveShockSummary | null>(null);
   const [season, setSeason] = useState<LeaderboardSeasonSummary | null>(null);
-  const [month, setMonth] = useState<string | null>(() => {
-    const initial = searchParams.get("month");
-    return initial && isMonthLabel(initial) ? initial : null;
-  });
-
-  useEffect(() => {
-    const urlMonth = searchParams.get("month");
-    const normalizedMonth = urlMonth && isMonthLabel(urlMonth) ? urlMonth : null;
-    setMonth((current) => (current === normalizedMonth ? current : normalizedMonth));
-  }, [searchParams]);
 
   const effectiveMonth = month ?? season?.activeMonth ?? getCurrentMonthLabel();
   const monthLabel = toMonthHeaderLabel(effectiveMonth);
@@ -159,13 +159,20 @@ export default function LeaderboardPage() {
     async function load() {
       setIsLoading(true);
       setError(null);
+      setEntries([]);
       setActiveShock(null);
+      setSeason(null);
+      setExpandedId(null);
 
       try {
-        const queryMonth = month ? `&month=${month}` : "";
-        const response = await fetch(
-          `/api/leaderboard?page=${pagination.page}&pageSize=${pagination.pageSize}${queryMonth}`,
-        );
+        const query = new URLSearchParams();
+        query.set("page", String(page));
+        query.set("pageSize", String(pagination.pageSize));
+        if (month) {
+          query.set("month", month);
+        }
+
+        const response = await fetch(`/api/leaderboard?${query.toString()}`);
         if (!response.ok) {
           setError("Unable to load leaderboard.");
           setIsLoading(false);
@@ -182,7 +189,6 @@ export default function LeaderboardPage() {
         setEntries(payload.data ?? []);
         setSeason(payload.season ?? null);
         setActiveShock(payload.activeShock ?? null);
-        setExpandedId(null);
         if (payload.pagination) {
           setPagination((current) => ({
             ...current,
@@ -198,31 +204,31 @@ export default function LeaderboardPage() {
     }
 
     load();
-  }, [month, pagination.page, pagination.pageSize]);
+  }, [month, page, pagination.pageSize]);
 
   function setPage(nextPage: number) {
-    setPagination((current) => ({
-      ...current,
-      page: Math.min(Math.max(nextPage, 1), current.totalPages),
-    }));
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("page", String(Math.min(Math.max(nextPage, 1), pagination.totalPages)));
+    if (month) {
+      params.set("month", month);
+    } else {
+      params.delete("month");
+    }
+    router.replace(params.toString() ? `?${params.toString()}` : "/leaderboard", { scroll: false });
+    setExpandedId(null);
   }
 
   function updateMonth(nextMonth: string) {
     const safeMonth = isMonthLabel(nextMonth) ? nextMonth : null;
-    setMonth(safeMonth);
-    setExpandedId(null);
-    setPagination((current) => ({
-      ...current,
-      page: 1,
-    }));
-
     const params = new URLSearchParams(searchParams.toString());
+    params.set("page", "1");
     if (safeMonth) {
       params.set("month", safeMonth);
     } else {
       params.delete("month");
     }
     router.replace(params.toString() ? `?${params.toString()}` : "/leaderboard", { scroll: false });
+    setExpandedId(null);
   }
 
   function handlePreviousMonth() {
@@ -344,7 +350,7 @@ export default function LeaderboardPage() {
         </section>
       ) : null}
 
-      {entries.length > 0 ? (
+      {!isLoading && entries.length > 0 ? (
         <section className="overflow-hidden rounded-xl border border-zinc-800 bg-zinc-900/80">
           <div className="overflow-x-auto">
             <table className="min-w-full text-left text-sm text-zinc-200">
