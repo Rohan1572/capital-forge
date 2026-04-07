@@ -8,6 +8,7 @@ const navItems = [
   { href: "/simulate", label: "Simulate" },
   { href: "/strategies", label: "Strategies" },
   { href: "/leaderboard", label: "Leaderboard" },
+  { href: "/account", label: "Account" },
 ];
 
 function isActivePath(pathname: string, href: string) {

@@ -24,6 +24,10 @@ async function scryptHash(password: string, salt: string) {
   });
 }
 
+export function isValidEmail(email: string) {
+  return /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email);
+}
+
 export async function hashPassword(password: string) {
   const salt = crypto.randomBytes(16).toString("hex");
   const derivedKey = await scryptHash(password, salt);
@@ -90,6 +94,44 @@ export async function createSession(userId: string): Promise<AuthSession> {
 
 export async function deleteSession(token: string) {
   await prisma.session.deleteMany({ where: { token } });
+}
+
+export async function updateUserProfile(
+  userId: string,
+  payload: { name: string | null; email: string },
+) {
+  return prisma.user.update({
+    where: { id: userId },
+    data: {
+      name: payload.name,
+      email: payload.email,
+    },
+    select: {
+      id: true,
+      email: true,
+      name: true,
+      createdAt: true,
+    },
+  });
+}
+
+export async function updateUserPassword(userId: string, password: string) {
+  const passwordHash = await hashPassword(password);
+
+  return prisma.user.update({
+    where: { id: userId },
+    data: {
+      passwordHash,
+    },
+  });
+}
+
+export async function deleteUserSessions(userId: string) {
+  await prisma.session.deleteMany({ where: { userId } });
+}
+
+export async function deleteUserAccount(userId: string) {
+  await prisma.user.delete({ where: { id: userId } });
 }
 
 export function getSessionCookieName() {

@@ -37,6 +37,12 @@ export function AppShell({ user, children }: AppShellProps) {
                 <div className="hidden text-xs text-zinc-400 sm:block">
                   Signed in as <span className="text-zinc-200">{getUserLabel(user)}</span>
                 </div>
+                <Link
+                  href="/account"
+                  className="rounded-lg border border-zinc-800 px-3 py-2 text-sm font-medium text-zinc-200 transition hover:border-zinc-600 hover:text-zinc-100"
+                >
+                  Account
+                </Link>
                 <LogoutButton />
               </>
             ) : (
