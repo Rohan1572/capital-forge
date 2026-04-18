@@ -14,6 +14,8 @@ The original launch roadmap is mostly complete. This document now tracks only:
 - The prompt needed to delegate that remaining task.
 
 Since the previous revision, the home page and contributor docs cleanup is implemented, the API contract coverage is in place, and the Vercel cron scheduler is already wired through `vercel.json`.
+The dashboard portfolio snapshot is also implemented, so there is no longer a verified open task in that area.
+The remaining gaps are mostly around test coverage and operational confidence, not missing core product features.
 
 ---
 
@@ -65,22 +67,51 @@ The main product loop is already present in the codebase:
 
 ---
 
-# Open Work
+# Production-Ready Gaps
 
-## Verified Open Work
+The product is feature-complete enough to run, but these gaps still block a confident production launch.
 
-- Replace the placeholder dashboard summary copy with a real portfolio snapshot section. The dashboard already renders recent simulation runs and monitoring, but the opening copy in `app/(app)/dashboard/page.tsx` still says the portfolio snapshot, metrics, and recent simulations "will be shown here".
+## Priority 1: Coverage For User-Facing Paths
+
+- Add direct coverage for the dashboard snapshot and its core widgets. The dashboard now renders `PortfolioSnapshotSection`, `RecentSimulationRunsWidget`, and `MonitoringWidget`, but the current e2e suite only verifies that `/dashboard` loads and does not assert the snapshot content or empty states.
+- Add route-level tests for the untested API surface, especially auth/account/password, admin, and cron handlers. The repo has 25 route handlers under `app/api`, but the current automated coverage is concentrated in response-shape tests plus two e2e smoke/regression flows.
+
+## Priority 2: Coverage For Operational Flows
+
+- Add CI-visible smoke checks for the operational routes that power production maintenance, especially monitoring, retention, leaderboard rollover, and weekly shocks. Those endpoints exist, but they are not directly exercised by the present test suite.
+- Verify the backup and restore check path in a real deployment-like environment before launch. The repo has `npm run ops:restore:check`, but the roadmap should treat restore validation as a launch gate rather than a documented suggestion.
+- Gate schema changes with a pre-deploy rehearsal that includes `npm run ops:schema:drift` and a post-deploy smoke path. The runbook documents the workflow, but the repo still relies on humans to remember and sequence it correctly.
+
+## Priority 3: Production Confidence
+
+- Add a release checklist that confirms the required secrets and operator routes are configured in the target environment, including `CRON_SECRET` and `ADMIN_TRIGGER_SECRET`.
+- Add explicit production smoke criteria for the monitoring summary so a deploy can be accepted or rolled back based on measurable health signals rather than manual inspection alone.
 
 ---
 
 # Prompt Pack
 
-Use this prompt when delegating the remaining work. It is kept intentionally narrow so it does not drift into already-implemented dashboard widgets.
+Use these prompts when delegating the remaining work.
 
-## Build The Dashboard Snapshot
+## Harden The Dashboard
 
 Prompt:
-Replace the placeholder dashboard copy with a real portfolio snapshot section above the existing monitoring and recent-runs widgets. Reuse the data and components already in the app where possible, and surface a concise at-a-glance overview of the user's current portfolio, recent performance, and recent activity without duplicating the rest of the dashboard.
+Add direct automated coverage for the dashboard snapshot and its key states. Assert that the dashboard renders the portfolio snapshot, recent performance, and recent activity sections when data exists, and that the empty state is correct when no saved strategy exists.
+
+## Cover The Routes
+
+Prompt:
+Add route-level tests for the currently untested API handlers, focusing first on auth/account/password, admin, and cron endpoints. Verify both happy-path payload shapes and the failure modes that matter for production hardening.
+
+## Exercise Ops Flows
+
+Prompt:
+Add CI-friendly smoke coverage for the maintenance flows that keep the app healthy in production. Prioritize monitoring, retention, leaderboard rollover, and weekly shock endpoints so the operational surface is verified before release.
+
+## Launch Gate The Ops Checks
+
+Prompt:
+Turn the documented backup, schema, and monitoring steps into explicit launch gates. Make sure restore validation, schema-drift checks, and post-deploy monitoring smoke tests are required before a production release is considered ready.
 
 ---
 
@@ -88,4 +119,4 @@ Replace the placeholder dashboard copy with a real portfolio snapshot section ab
 
 Date: April 19, 2026
 
-Codebase checked against the current repo state. This document now tracks only verified open work and the prompts needed to implement it.
+Codebase checked against the current repo state. This document now tracks the verified gaps that still need production hardening before launch.
