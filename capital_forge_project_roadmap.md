@@ -5,13 +5,15 @@
 
 # Status
 
-Updated against the current repo state on April 7, 2026.
+Updated against the current repo state on April 19, 2026.
 
-The original launch roadmap is mostly complete. This document now tracks:
+The original launch roadmap is mostly complete. This document now tracks only:
 
 - What is already in place.
-- The small set of open follow-up items that still need implementation.
-- The prompts we should use to delegate those remaining tasks.
+- The verified open work that still needs implementation.
+- The prompt needed to delegate that remaining task.
+
+Since the previous revision, the home page and contributor docs cleanup is implemented, the API contract coverage is in place, and the Vercel cron scheduler is already wired through `vercel.json`.
 
 ---
 
@@ -55,7 +57,7 @@ The main product loop is already present in the codebase:
 
 - Privacy and data handling guidance is documented.
 - Backup and restore, schema drift, monitoring, and incident response runbooks are documented.
-- Monitoring summaries, cron checks, retention sweeps, and leaderboard rollover routes are present.
+- Monitoring summaries, cron checks, retention sweeps, leaderboard rollover routes, and the Vercel cron schedules are present.
 
 ## UI Polish
 
@@ -65,81 +67,25 @@ The main product loop is already present in the codebase:
 
 # Open Work
 
-## P0 Launch Blockers
+## Verified Open Work
 
-- Wire scheduled jobs to real deployment infrastructure.
-- Fix leaderboard correctness, pagination, and page-state behavior.
-- Make simulation and replay output honest and stable.
-- Add lightweight API contract tests for public JSON surfaces.
-
-## P1 Core Product Gaps
-
-- Improve monitoring visibility, refresh behavior, and operator delivery.
-- Improve strategy history and workspace tools.
-- Harden auth, session, and account-management flows.
-- Fix the home page and contributor tooling docs.
-
-## P2 UX, Accessibility, And Polish
-
-- Separate loading and error states across shared widgets.
-- Make loading states and metric labels accessible.
-- Improve onboarding modal accessibility.
+- Replace the placeholder dashboard summary copy with a real portfolio snapshot section. The dashboard already renders recent simulation runs and monitoring, but the opening copy in `app/(app)/dashboard/page.tsx` still says the portfolio snapshot, metrics, and recent simulations "will be shown here".
 
 ---
 
 # Prompt Pack
 
-Use these prompts when delegating the remaining work. The prompts below are merged to avoid duplicate work and overlapping implementation paths.
+Use this prompt when delegating the remaining work. It is kept intentionally narrow so it does not drift into already-implemented dashboard widgets.
 
-## Wire Scheduled Jobs
-
-Prompt:
-Connect the existing cron routes in `app/api/cron/shocks/weekly/route.ts`, `app/api/cron/leaderboard/monthly/route.ts`, `app/api/cron/monitoring/route.ts`, and `app/api/cron/retention/route.ts` to the real deployment scheduler for this repo. Keep the implementation minimal, document the required secrets and run cadence, and make sure the existing manual admin routes remain usable.
-
-## Fix Leaderboard Correctness And State
+## Build The Dashboard Snapshot
 
 Prompt:
-Fix the leaderboard flow so the API returns globally ranked results before pagination, missing or partial metrics are handled explicitly instead of being coerced to zero, and the page keeps its month/page state in the URL. While you're there, make loading transitions unambiguous so stale table data does not linger while a new request is in flight.
-
-## Make Simulation Output Honest And Stable
-
-Prompt:
-Update the simulate flow so starting a new run clears stale results, stale comparison cards, and any previous AI output before the new run completes. Rewrite the save error messaging so it accurately reflects backend failures, and correct the scenario path chart so it does not imply a true Monte Carlo path if it is only compounding percentile returns. Also make the replay path surface malformed or partial saved results instead of silently trimming them.
-
-## Improve Monitoring Visibility And Delivery
-
-Prompt:
-Enhance monitoring so the dashboard card shows report status, alert summaries, and a clear refresh behavior, while the cron and report paths provide a concise operator-facing delivery path for warning and critical conditions. Reuse the existing monitoring report and keep the output actionable without making the UI noisy.
-
-## Improve Strategy History And Workspace
-
-Prompt:
-Refine strategy history and detail views so users can page through or load more than the first 20 saved strategies, see all calculated comparison metrics, and jump into strategy detail more easily. Add a clearer confirmation step for destructive actions, replace raw strategy IDs with user-friendly labels, and include lightweight workflow tools such as search, sort, rename, clone, annotation, or export where they make sense.
-
-## Harden Auth And Account Management
-
-Prompt:
-Harden the login and registration forms so network failures do not leave the submit button stuck, make logout redirect only after a successful sign-out response, and keep logged-in users away from `/login` and `/register` unless they explicitly want to switch accounts. Extend the auth area with password recovery, basic account settings, and self-service account deletion so the product feels complete.
-
-## Improve Loading And Accessibility
-
-Prompt:
-Update shared loading and empty states so they are clearly separated from errors, add `aria-busy` or equivalent status announcements where skeletons are used, and make metric help labels keyboard-focusable and touch-friendly. Also improve the onboarding modal and glossary drawer with keyboard dismissal, focus management, and body scroll handling.
-
-## Fix Home Page And Contributor Docs
-
-Prompt:
-Remove or replace the `/strategy/demo` link on the home page so the landing screen only points to real routes, and refresh the landing-page copy so it reflects the actual product instead of the scaffold template language. Then align the contributor docs with the actual code-review-graph scripts in `package.json`, or add the missing scripts if that workflow is still intended.
-
-## Add API Contract Tests
-
-Prompt:
-Add a small set of tests that validate the JSON response shape for leaderboard, monitoring, and cron endpoints. Focus on the fields the UI and runbooks depend on, and keep the tests resilient to harmless data changes.
+Replace the placeholder dashboard copy with a real portfolio snapshot section above the existing monitoring and recent-runs widgets. Reuse the data and components already in the app where possible, and surface a concise at-a-glance overview of the user's current portfolio, recent performance, and recent activity without duplicating the rest of the dashboard.
 
 ---
 
 # Roadmap Update Metadata
 
-Date: April 7, 2026
+Date: April 19, 2026
 
 Codebase checked against the current repo state. This document now tracks only verified open work and the prompts needed to implement it.
