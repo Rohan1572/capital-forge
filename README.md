@@ -34,7 +34,7 @@ To learn more about Next.js, take a look at the following resources:
 
 ## Code Review Graph
 
-Use these commands to build or inspect the local code-review graph:
+Use these npm scripts to build, inspect, or serve the local code-review graph:
 
 ```bash
 npm run graph:build

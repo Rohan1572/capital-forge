@@ -8,7 +8,7 @@ export default function Home() {
     { href: "/strategies", label: "Strategy History" },
     { href: "/simulate", label: "Simulate" },
     { href: "/leaderboard", label: "Leaderboard" },
-    { href: "/strategy/demo", label: "Strategy Detail" },
+    { href: "/account", label: "Account" },
   ];
 
   return (
@@ -16,7 +16,8 @@ export default function Home() {
       <main className="w-full max-w-2xl rounded-xl border border-zinc-800 bg-zinc-900/80 p-8">
         <h1 className="text-3xl font-semibold tracking-tight">CapitalForge</h1>
         <p className="mt-3 text-zinc-300">
-          Base project scaffold with App Router, strict TypeScript, TailwindCSS, and linting.
+          Model portfolio moves, save strategy snapshots, and review performance across history,
+          simulations, and leaderboard rankings.
         </p>
         <div className="mt-8 grid gap-3 sm:grid-cols-2">
           {routes.map((route) => (
