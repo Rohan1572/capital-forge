@@ -6,6 +6,7 @@ import {
   getCurrentUtcMonthLabel,
 } from "@/lib/leaderboardSeason";
 import { getActiveShock } from "@/lib/shocks";
+import { buildLeaderboardResponse } from "@/lib/apiResponses";
 
 type StrategyMetrics = {
   expectedReturn: number | null;
@@ -198,18 +199,20 @@ export async function GET(request: Request) {
       currentMonth: getCurrentUtcMonthLabel(),
     };
 
-    return NextResponse.json({
-      data: pagedRanked,
-      month: monthRange.label,
-      season: seasonSummary,
-      activeShock: activeShockSummary,
-      pagination: {
-        page,
-        pageSize,
-        total,
-        totalPages: Math.max(1, Math.ceil(total / pageSize)),
-      },
-    });
+    return NextResponse.json(
+      buildLeaderboardResponse({
+        data: pagedRanked,
+        month: monthRange.label,
+        season: seasonSummary,
+        activeShock: activeShockSummary,
+        pagination: {
+          page,
+          pageSize,
+          total,
+          totalPages: Math.max(1, Math.ceil(total / pageSize)),
+        },
+      }),
+    );
   } catch (error) {
     console.error("Failed to load leaderboard", error);
     return NextResponse.json({ error: "Unable to load leaderboard." }, { status: 500 });

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { generateAndActivateWeeklyShock } from "@/lib/shockScheduler";
+import { buildWeeklyShockResponse } from "@/lib/apiResponses";
 
 function isAuthorized(request: Request, secretName: string, headerName: string) {
   const secret = process.env[secretName];
@@ -23,7 +24,7 @@ async function handleRequest(request: Request) {
     };
 
     const result = await generateAndActivateWeeklyShock(body);
-    return NextResponse.json({ data: { shock: result.shock, meta: result.meta } });
+    return NextResponse.json(buildWeeklyShockResponse(result));
   } catch (error) {
     console.error("Failed to run weekly shock cron", error);
     return NextResponse.json({ error: "Unable to generate AI response." }, { status: 500 });

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { runRetentionSweep } from "@/lib/dataRetention";
+import { buildRetentionSweepResponse } from "@/lib/apiResponses";
 
 function isAuthorized(request: Request, secretName: string, headerName: string) {
   const secret = process.env[secretName];
@@ -17,7 +18,7 @@ async function handleRequest(request: Request) {
 
   try {
     const summary = await runRetentionSweep();
-    return NextResponse.json({ data: summary });
+    return NextResponse.json(buildRetentionSweepResponse(summary));
   } catch (error) {
     console.error("Failed to run retention sweep cron", error);
     return NextResponse.json({ error: "Unable to run retention sweep." }, { status: 500 });

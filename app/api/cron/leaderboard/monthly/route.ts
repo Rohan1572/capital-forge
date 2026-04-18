@@ -1,5 +1,6 @@
 ﻿import { NextResponse } from "next/server";
 import { rolloverLeaderboardSeason, setLeaderboardSeason } from "@/lib/leaderboardSeason";
+import { buildLeaderboardCronResponse } from "@/lib/apiResponses";
 
 function isAuthorized(request: Request, secretName: string, headerName: string) {
   const secret = process.env[secretName];
@@ -18,11 +19,7 @@ async function handleRollover(request: Request) {
   const season = body.month
     ? await setLeaderboardSeason(body.month)
     : await rolloverLeaderboardSeason();
-  return NextResponse.json({
-    data: {
-      activeMonth: season.activeMonth,
-    },
-  });
+  return NextResponse.json(buildLeaderboardCronResponse(season.activeMonth));
 }
 
 async function handleRequest(request: Request) {

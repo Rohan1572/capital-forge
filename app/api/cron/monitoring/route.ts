@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { buildGlobalMonitoringReport } from "@/lib/monitoringReport";
 import { buildMonitoringDelivery } from "@/lib/monitoring";
+import { buildMonitoringResponse } from "@/lib/apiResponses";
 
 function isAuthorized(request: Request, secretName: string, headerName: string) {
   const secret = process.env[secretName];
@@ -74,7 +75,7 @@ async function handleRequest(request: Request) {
 
     await recordMonitoringAlert(report);
 
-    return NextResponse.json({ data: { report, delivery, ...report } });
+    return NextResponse.json(buildMonitoringResponse(report, delivery));
   } catch (error) {
     console.error("Failed to run monitoring cron", error);
     return NextResponse.json({ error: "Unable to run monitoring summary." }, { status: 500 });
