@@ -1,12 +1,12 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { StatePanel } from "@/components/StatePanel";
+import { StatePanel } from "./StatePanel";
 import {
   buildStrategyCardSubtitle,
   buildStrategyDisplayLabel,
   formatStrategyDate,
-} from "@/lib/strategyPresentation";
-import type { SimulationMetrics } from "@/lib/metrics";
+} from "../lib/strategyPresentation";
+import type { SimulationMetrics } from "../lib/metrics";
 
 type PortfolioStrategySnapshot = {
   id: string;
