@@ -1,6 +1,9 @@
 ﻿import { NextResponse } from "next/server";
-import { rolloverLeaderboardSeason, setLeaderboardSeason } from "@/lib/leaderboardSeason";
-import { buildLeaderboardCronResponse } from "@/lib/apiResponses";
+import {
+  rolloverLeaderboardSeason,
+  setLeaderboardSeason,
+} from "../../../../../lib/leaderboardSeason";
+import { buildLeaderboardCronResponse } from "../../../../../lib/apiResponses";
 
 function isAuthorized(request: Request, secretName: string, headerName: string) {
   const secret = process.env[secretName];

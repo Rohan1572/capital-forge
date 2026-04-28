@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
-import { buildGlobalMonitoringReport } from "@/lib/monitoringReport";
-import { buildMonitoringDelivery } from "@/lib/monitoring";
+import { buildGlobalMonitoringReport } from "../../../../lib/monitoringReport";
+import { buildMonitoringDelivery } from "../../../../lib/monitoring";
 
 function isAuthorized(request: Request, secretName: string, headerName: string) {
   const secret = process.env[secretName];

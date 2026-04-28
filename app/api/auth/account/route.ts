@@ -1,14 +1,14 @@
 import { NextResponse } from "next/server";
-import { requireSameOrigin } from "@/lib/requestSecurity";
+import { requireSameOrigin } from "../../../../lib/requestSecurity";
 import {
   deleteUserAccount,
   deleteUserSessions,
   getSessionClearCookieOptions,
   getSessionCookieName,
   verifyPassword,
-} from "@/lib/auth";
-import { getSessionUser } from "@/lib/session";
-import { prisma } from "@/lib/prisma";
+} from "../../../../lib/auth";
+import { getSessionUser } from "../../../../lib/session";
+import { prisma } from "../../../../lib/prisma";
 
 export async function DELETE(request: Request) {
   const originError = requireSameOrigin(request);

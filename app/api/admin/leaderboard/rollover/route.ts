@@ -1,5 +1,8 @@
 ﻿import { NextResponse } from "next/server";
-import { rolloverLeaderboardSeason, setLeaderboardSeason } from "@/lib/leaderboardSeason";
+import {
+  rolloverLeaderboardSeason,
+  setLeaderboardSeason,
+} from "../../../../../lib/leaderboardSeason";
 
 function isAuthorized(request: Request, secretName: string, headerName: string) {
   const secret = process.env[secretName];

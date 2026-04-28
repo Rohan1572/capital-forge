@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
-import { generateAndActivateWeeklyShock } from "@/lib/shockScheduler";
-import { buildWeeklyShockResponse } from "@/lib/apiResponses";
+import { generateAndActivateWeeklyShock } from "../../../../../lib/shockScheduler";
+import { buildWeeklyShockResponse } from "../../../../../lib/apiResponses";
 
 function isAuthorized(request: Request, secretName: string, headerName: string) {
   const secret = process.env[secretName];

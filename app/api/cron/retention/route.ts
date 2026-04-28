@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
-import { runRetentionSweep } from "@/lib/dataRetention";
-import { buildRetentionSweepResponse } from "@/lib/apiResponses";
+import { runRetentionSweep } from "../../../../lib/dataRetention";
+import { buildRetentionSweepResponse } from "../../../../lib/apiResponses";
 
 function isAuthorized(request: Request, secretName: string, headerName: string) {
   const secret = process.env[secretName];

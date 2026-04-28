@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
-import { requireSameOrigin } from "@/lib/requestSecurity";
-import { getPasswordDigest, verifyPasswordResetToken } from "@/lib/passwordRecovery";
-import { getSessionCookieName, updateUserPassword } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
+import { requireSameOrigin } from "../../../../lib/requestSecurity";
+import { getPasswordDigest, verifyPasswordResetToken } from "../../../../lib/passwordRecovery";
+import { getSessionCookieName, updateUserPassword } from "../../../../lib/auth";
+import { prisma } from "../../../../lib/prisma";
 
 export async function POST(request: Request) {
   const originError = requireSameOrigin(request);

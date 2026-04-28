@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
-import { requireSameOrigin } from "@/lib/requestSecurity";
-import { isValidEmail, updateUserProfile, verifyPassword } from "@/lib/auth";
-import { getSessionUser } from "@/lib/session";
-import { prisma } from "@/lib/prisma";
+import { requireSameOrigin } from "../../../../../lib/requestSecurity";
+import { isValidEmail, updateUserProfile, verifyPassword } from "../../../../../lib/auth";
+import { getSessionUser } from "../../../../../lib/session";
+import { prisma } from "../../../../../lib/prisma";
 
 type ProfileUpdateBody = {
   name?: string;

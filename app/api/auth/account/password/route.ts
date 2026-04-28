@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
-import { requireSameOrigin } from "@/lib/requestSecurity";
-import { getSessionCookieName, updateUserPassword, verifyPassword } from "@/lib/auth";
-import { getSessionUser } from "@/lib/session";
-import { prisma } from "@/lib/prisma";
+import { requireSameOrigin } from "../../../../../lib/requestSecurity";
+import { getSessionCookieName, updateUserPassword, verifyPassword } from "../../../../../lib/auth";
+import { getSessionUser } from "../../../../../lib/session";
+import { prisma } from "../../../../../lib/prisma";
 
 export async function PATCH(request: Request) {
   const originError = requireSameOrigin(request);

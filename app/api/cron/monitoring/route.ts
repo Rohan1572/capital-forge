@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
-import { buildGlobalMonitoringReport } from "@/lib/monitoringReport";
-import { buildMonitoringDelivery } from "@/lib/monitoring";
-import { buildMonitoringResponse } from "@/lib/apiResponses";
+import { prisma } from "../../../../lib/prisma";
+import { buildGlobalMonitoringReport } from "../../../../lib/monitoringReport";
+import { buildMonitoringDelivery } from "../../../../lib/monitoring";
+import { buildMonitoringResponse } from "../../../../lib/apiResponses";
 
 function isAuthorized(request: Request, secretName: string, headerName: string) {
   const secret = process.env[secretName];

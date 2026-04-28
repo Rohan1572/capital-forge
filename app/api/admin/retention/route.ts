@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { deleteSupportData } from "@/lib/dataRetention";
+import { deleteSupportData } from "../../../../lib/dataRetention";
 
 function isAuthorized(request: Request, secretName: string, headerName: string) {
   const secret = process.env[secretName];
