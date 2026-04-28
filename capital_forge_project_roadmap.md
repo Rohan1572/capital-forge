@@ -5,7 +5,7 @@
 
 # Status
 
-Updated against the current repo state on April 19, 2026.
+Updated against the current repo state on April 28, 2026.
 
 The original launch roadmap is mostly complete. This document now tracks only:
 
@@ -54,12 +54,15 @@ The main product loop is already present in the codebase:
 - End-to-end coverage exists for the launch path: login, allocate, simulate, save, and leaderboard.
 - Leaderboard month navigation and shock context are covered by a separate regression spec.
 - Snapshot coverage exists for AI prompt and safety formatting.
+- Dashboard snapshot state is covered at the library level for both populated and empty states.
+- Route-level coverage exists for auth account/password, admin, and cron handlers, plus smoke coverage for the operational maintenance routes.
 
 ## Operations
 
 - Privacy and data handling guidance is documented.
 - Backup and restore, schema drift, monitoring, and incident response runbooks are documented.
 - Monitoring summaries, cron checks, retention sweeps, leaderboard rollover routes, and the Vercel cron schedules are present.
+- The backup restore, schema drift, and monitoring-check scripts already exist, but they are still documentation-driven rather than release-gated.
 
 ## UI Polish
 
@@ -73,19 +76,39 @@ The product is feature-complete enough to run, but these gaps still block a conf
 
 ## Priority 1: Coverage For User-Facing Paths
 
-- Add direct coverage for the dashboard snapshot and its core widgets. The dashboard now renders `PortfolioSnapshotSection`, `RecentSimulationRunsWidget`, and `MonitoringWidget`, but the current e2e suite only verifies that `/dashboard` loads and does not assert the snapshot content or empty states.
-- Add route-level tests for the untested API surface, especially auth/account/password, admin, and cron handlers. The repo has 25 route handlers under `app/api`, but the current automated coverage is concentrated in response-shape tests plus two e2e smoke/regression flows.
+- Add page-level e2e coverage for the dashboard snapshot and its core widgets. The dashboard now renders `PortfolioSnapshotSection`, `RecentSimulationRunsWidget`, and `MonitoringWidget`, but the current e2e suite only verifies that `/dashboard` loads and does not assert the rendered snapshot content or empty states.
+- Add route-level tests for the remaining untested API surface, especially auth login/logout/register, the user-scoped monitoring route, the AI routes, and the simulation/strategy/leaderboard handlers. The current automated coverage is concentrated in account/password, admin, cron, response-shape tests, and two e2e smoke/regression flows.
 
 ## Priority 2: Coverage For Operational Flows
 
-- Add CI-visible smoke checks for the operational routes that power production maintenance, especially monitoring, retention, leaderboard rollover, and weekly shocks. Those endpoints exist, but they are not directly exercised by the present test suite.
-- Verify the backup and restore check path in a real deployment-like environment before launch. The repo has `npm run ops:restore:check`, but the roadmap should treat restore validation as a launch gate rather than a documented suggestion.
-- Gate schema changes with a pre-deploy rehearsal that includes `npm run ops:schema:drift` and a post-deploy smoke path. The runbook documents the workflow, but the repo still relies on humans to remember and sequence it correctly.
+- Promote the documented backup, schema, and monitoring checks into an explicit release gate. A production release is not ready until all of the following are true:
+  - Restore validation passes against a disposable restore of the latest production backup via `npm run ops:restore:check`.
+  - Schema drift is clear before deploy via `npm run ops:schema:drift`, and the migration rehearsal completes without unresolved drift.
+  - Post-deploy monitoring smoke checks succeed against the live release, including the user-scoped monitoring route and the operator summary route, with no unexpected critical alerts.
+- Add a deployment preflight that verifies the required operator secrets are present in the target environment, including `CRON_SECRET` and `ADMIN_TRIGGER_SECRET`, before a production release can be marked ready.
 
 ## Priority 3: Production Confidence
 
-- Add a release checklist that confirms the required secrets and operator routes are configured in the target environment, including `CRON_SECRET` and `ADMIN_TRIGGER_SECRET`.
-- Add explicit production smoke criteria for the monitoring summary so a deploy can be accepted or rolled back based on measurable health signals rather than manual inspection alone.
+- Add a release checklist that fails closed if any launch gate is missing, skipped, or only verified manually outside the documented checks.
+- Keep the monitoring smoke criteria explicit so a deploy can be accepted or rolled back based on measurable health signals rather than manual inspection alone.
+
+## Launch Gates
+
+These gates are the production-release acceptance criteria implied by the runbooks and scripts already in the repo.
+
+1. Backup restore validation
+   - Restore the latest production backup into a disposable database.
+   - Point `RESTORED_DATABASE_URL` at that database.
+   - Run `npm run ops:restore:check`.
+   - Do not promote the release unless this passes.
+2. Schema drift gate
+   - Run `npm run ops:schema:drift` before applying migrations.
+   - Rehearse the migration on staging or a disposable production copy.
+   - Do not consider the release ready if drift remains or migration history is inconsistent.
+3. Post-deploy monitoring smoke gate
+   - Verify the live release with the monitoring route and the operator summary route.
+   - Confirm the health response is `healthy` or an explained `warning`, and that unexpected critical alerts are absent.
+   - Use the smoke result as a release blocker, not an after-the-fact check.
 
 ---
 
@@ -96,27 +119,27 @@ Use these prompts when delegating the remaining work.
 ## Harden The Dashboard
 
 Prompt:
-Add direct automated coverage for the dashboard snapshot and its key states. Assert that the dashboard renders the portfolio snapshot, recent performance, and recent activity sections when data exists, and that the empty state is correct when no saved strategy exists.
+Add page-level e2e coverage for the dashboard snapshot and its key states. Assert that the dashboard renders the portfolio snapshot, recent performance, and recent activity sections when data exists, and that the empty state is correct when no saved strategy exists.
 
 ## Cover The Routes
 
 Prompt:
-Add route-level tests for the currently untested API handlers, focusing first on auth/account/password, admin, and cron endpoints. Verify both happy-path payload shapes and the failure modes that matter for production hardening.
+Add route-level tests for the currently untested API handlers, focusing first on auth login/logout/register, the user-scoped monitoring route, the AI endpoints, and the simulation/strategy/leaderboard handlers. Verify both happy-path payload shapes and the failure modes that matter for production hardening.
 
 ## Exercise Ops Flows
 
 Prompt:
-Add CI-friendly smoke coverage for the maintenance flows that keep the app healthy in production. Prioritize monitoring, retention, leaderboard rollover, and weekly shock endpoints so the operational surface is verified before release.
+Promote the documented restore, schema, and monitoring checks into a required release gate. The release should fail if restore validation, schema-drift rehearsal, or post-deploy monitoring smoke tests have not been completed.
 
 ## Launch Gate The Ops Checks
 
 Prompt:
-Turn the documented backup, schema, and monitoring steps into explicit launch gates. Make sure restore validation, schema-drift checks, and post-deploy monitoring smoke tests are required before a production release is considered ready.
+Turn the documented backup, schema, and monitoring steps into explicit launch gates. Make sure restore validation, schema-drift checks, post-deploy monitoring smoke tests, and required operator secrets are enforced before a production release is considered ready.
 
 ---
 
 # Roadmap Update Metadata
 
-Date: April 19, 2026
+Date: April 28, 2026
 
 Codebase checked against the current repo state. This document now tracks the verified gaps that still need production hardening before launch.
