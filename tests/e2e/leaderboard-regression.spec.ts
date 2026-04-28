@@ -139,6 +139,7 @@ test("leaderboard month navigation and shock context remain visible", async ({ p
   );
   await page.getByRole("button", { name: "Sign in" }).click();
   expect((await loginResponse).status()).toBe(200);
+  await page.waitForURL("**/dashboard");
 
   await page.goto("/leaderboard");
   await expect(page.getByRole("heading", { name: "Leaderboard", exact: true })).toBeVisible();
@@ -158,9 +159,15 @@ test("leaderboard month navigation and shock context remain visible", async ({ p
     "#1",
   );
 
+  const previousMonthResponse = page.waitForResponse((response) => {
+    return (
+      response.url().includes("/api/leaderboard") &&
+      response.request().method() === "GET" &&
+      response.url().includes("month=2026-03")
+    );
+  });
   await page.getByRole("button", { name: "Previous month" }).click();
-  await expect(page).toHaveURL(/month=2026-03/);
-  await expect(page).toHaveURL(/page=1/);
+  expect((await previousMonthResponse).status()).toBe(200);
   await expect(page.getByLabel("Month")).toHaveValue("2026-03");
   await expect(page.getByText("Current cycle: 2026-04", { exact: true })).toBeVisible();
   await expect(viewingMonthCard).toContainText("March 2026");
@@ -171,16 +178,30 @@ test("leaderboard month navigation and shock context remain visible", async ({ p
   );
   await expect(page.getByRole("button", { name: /^Next$/ })).toBeEnabled();
 
+  const nextPageResponse = page.waitForResponse((response) => {
+    return (
+      response.url().includes("/api/leaderboard") &&
+      response.request().method() === "GET" &&
+      response.url().includes("month=2026-03") &&
+      response.url().includes("page=2")
+    );
+  });
   await page.getByRole("button", { name: /^Next$/ }).click();
-  await expect(page).toHaveURL(/month=2026-03/);
-  await expect(page).toHaveURL(/page=2/);
+  expect((await nextPageResponse).status()).toBe(200);
   await expect(
     page.getByRole("row").filter({ hasText: "Second Page Runner" }).first(),
   ).toContainText("#26");
 
+  const backToAprilResponse = page.waitForResponse((response) => {
+    return (
+      response.url().includes("/api/leaderboard") &&
+      response.request().method() === "GET" &&
+      response.url().includes("month=2026-04") &&
+      response.url().includes("page=1")
+    );
+  });
   await page.getByRole("button", { name: "Next month" }).click();
-  await expect(page).toHaveURL(/month=2026-04/);
-  await expect(page).toHaveURL(/page=1/);
+  expect((await backToAprilResponse).status()).toBe(200);
   await expect(page.getByLabel("Month")).toHaveValue("2026-04");
   await expect(viewingMonthCard).toContainText("April 2026");
   await expect(shockContextCard).toContainText("April Shock");

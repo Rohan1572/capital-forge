@@ -53,6 +53,7 @@ The main product loop is already present in the codebase:
 
 - End-to-end coverage exists for the launch path: login, allocate, simulate, save, and leaderboard.
 - Leaderboard month navigation and shock context are covered by a separate regression spec.
+- Page-level end-to-end coverage now exists for the dashboard snapshot, including the populated state and the empty state when no saved strategy exists.
 - Snapshot coverage exists for AI prompt and safety formatting.
 - Dashboard snapshot state is covered at the library level for both populated and empty states.
 - Route-level coverage exists for auth account/password, admin, and cron handlers, plus smoke coverage for the operational maintenance routes.
@@ -76,7 +77,6 @@ The product is feature-complete enough to run, but these gaps still block a conf
 
 ## Priority 1: Coverage For User-Facing Paths
 
-- Add page-level e2e coverage for the dashboard snapshot and its core widgets. The dashboard now renders `PortfolioSnapshotSection`, `RecentSimulationRunsWidget`, and `MonitoringWidget`, but the current e2e suite only verifies that `/dashboard` loads and does not assert the rendered snapshot content or empty states.
 - Add route-level tests for the remaining untested API surface, especially auth login/logout/register, the user-scoped monitoring route, the AI routes, and the simulation/strategy/leaderboard handlers. The current automated coverage is concentrated in account/password, admin, cron, response-shape tests, and two e2e smoke/regression flows.
 
 ## Priority 2: Coverage For Operational Flows
