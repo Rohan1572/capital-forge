@@ -8,6 +8,7 @@
     "start": "next start",
     "typecheck": "tsc --noEmit",
     "test": "vitest run --exclude tests/e2e/** --pool=threads",
+    "test:smoke": "vitest run tests/api/maintenance.smoke.test.ts --pool=threads",
     "test:e2e": "playwright test",
     "lint": "eslint .",
     "format": "prettier --write .",

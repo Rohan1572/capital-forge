@@ -18,6 +18,7 @@ test("login, allocate, simulate, save, and rank", async ({ page, baseURL }) => {
     },
   });
   expect(registerResponse.ok()).toBeTruthy();
+  await page.context().clearCookies();
 
   await page.route("**/api/shocks/active", async (route) => {
     await route.fulfill({
@@ -160,6 +161,23 @@ test("login, allocate, simulate, save, and rank", async ({ page, baseURL }) => {
           pageSize: 25,
           total: 1,
           totalPages: 1,
+        },
+      }),
+    });
+  });
+
+  await page.route("**/api/strategies", async (route) => {
+    if (route.request().method() !== "POST") {
+      await route.continue();
+      return;
+    }
+
+    await route.fulfill({
+      status: 201,
+      contentType: "application/json",
+      body: JSON.stringify({
+        data: {
+          id: "smoke-strategy",
         },
       }),
     });

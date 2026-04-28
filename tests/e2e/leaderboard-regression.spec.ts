@@ -95,6 +95,7 @@ test("leaderboard month navigation and shock context remain visible", async ({ p
     },
   });
   expect(registerResponse.ok()).toBeTruthy();
+  await page.context().clearCookies();
 
   await page.route("**/api/shocks/active", async (route) => {
     await route.fulfill({
@@ -140,7 +141,7 @@ test("leaderboard month navigation and shock context remain visible", async ({ p
   expect((await loginResponse).status()).toBe(200);
 
   await page.goto("/leaderboard");
-  await expect(page.getByRole("heading", { name: "Leaderboard" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Leaderboard", exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Skip" }).click();
   await expect(page.getByLabel("Month")).toHaveValue("2026-04");
   await expect(page.getByText("Current cycle: 2026-04", { exact: true })).toBeVisible();
