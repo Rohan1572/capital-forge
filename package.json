@@ -28,7 +28,7 @@
   "dependencies": {
     "@prisma/adapter-pg": "7.4.2",
     "@prisma/client": "^7.8.0",
-    "next": "16.2.3",
+    "next": "16.2.6",
     "pg": "8.19.0",
     "react": "19.2.3",
     "react-dom": "19.2.3",
@@ -50,7 +50,7 @@
     "vitest": "4.0.18"
   },
   "overrides": {
-    "@hono/node-server": "1.19.14",
+    "@hono/node-server": "1.19.13",
     "postcss": "8.5.10"
   }
 }
