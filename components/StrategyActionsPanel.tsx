@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import type { Allocation } from "@/lib/monteCarlo";
 import type { SimulationMetrics } from "@/lib/metrics";
@@ -43,21 +43,13 @@ function downloadStrategy(strategy: StrategyActionsStrategy, note: string | null
 
 export function StrategyActionsPanel({ strategy }: StrategyActionsPanelProps) {
   const router = useRouter();
-  const [note, setNote] = useState("");
-  const [savedNote, setSavedNote] = useState<string | null>(null);
+  const storedNote = globalThis.localStorage.getItem(`strategy-note:${strategy.id}`);
+  const [note, setNote] = useState(storedNote ?? "");
+  const [savedNote, setSavedNote] = useState<string | null>(storedNote);
   const [isCloning, setIsCloning] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
-
-  useEffect(() => {
-    const storageKey = `strategy-note:${strategy.id}`;
-    const storedNote = globalThis.localStorage.getItem(storageKey);
-    if (storedNote !== null) {
-      setNote(storedNote);
-      setSavedNote(storedNote);
-    }
-  }, [strategy.id]);
 
   function persistNote(nextNote: string) {
     const storageKey = `strategy-note:${strategy.id}`;

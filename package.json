@@ -28,7 +28,7 @@
   "dependencies": {
     "@prisma/adapter-pg": "7.4.2",
     "@prisma/client": "7.8.0",
-    "next": "16.2.6",
+    "next": "16.3.0",
     "pg": "8.19.0",
     "react": "19.2.3",
     "react-dom": "19.2.3",
@@ -44,13 +44,9 @@
     "eslint-config-next": "16.1.6",
     "eslint-config-prettier": "10.1.8",
     "prettier": "3.8.1",
-    "prisma": "7.8.0",
+    "prisma": "7.9.1",
     "tailwindcss": "4",
     "typescript": "5",
     "vitest": "4.1.8"
-  },
-  "overrides": {
-    "@hono/node-server": "1.19.13",
-    "postcss": "8.5.10"
   }
 }

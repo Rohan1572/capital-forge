@@ -423,6 +423,7 @@ export default async function StrategyPage({ params }: Readonly<StrategyPageProp
       </header>
 
       <StrategyActionsPanel
+        key={strategy.id}
         strategy={{
           id: strategy.id,
           createdAt: strategy.createdAt.toISOString(),

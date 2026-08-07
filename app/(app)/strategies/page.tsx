@@ -213,10 +213,6 @@ export default function StrategyHistoryPage() {
     load();
   }, []);
 
-  useEffect(() => {
-    setVisibleCount(PAGE_SIZE);
-  }, [query, sortKey]);
-
   const filteredStrategies = useMemo(() => {
     return sortStrategies(filterStrategies(strategies, query), sortKey);
   }, [strategies, query, sortKey]);
@@ -323,7 +319,10 @@ export default function StrategyHistoryPage() {
             <span className="text-xs uppercase tracking-wide text-zinc-500">Search</span>
             <input
               value={query}
-              onChange={(event) => setQuery(event.target.value)}
+              onChange={(event) => {
+                setQuery(event.target.value);
+                setVisibleCount(PAGE_SIZE);
+              }}
               placeholder="Search by date, seed, shock, mode, or ID"
               className="mt-2 w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-zinc-100 placeholder:text-zinc-600 focus:border-amber-400 focus:outline-none"
             />
@@ -333,7 +332,10 @@ export default function StrategyHistoryPage() {
             <span className="text-xs uppercase tracking-wide text-zinc-500">Sort</span>
             <select
               value={sortKey}
-              onChange={(event) => setSortKey(event.target.value as SortKey)}
+              onChange={(event) => {
+                setSortKey(event.target.value as SortKey);
+                setVisibleCount(PAGE_SIZE);
+              }}
               className="mt-2 w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-zinc-100 focus:border-amber-400 focus:outline-none"
             >
               <option value="newest">Newest first</option>

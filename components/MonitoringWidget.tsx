@@ -343,11 +343,13 @@ export function MonitoringWidget({ days = 30 }: MonitoringWidgetProps) {
 
   useEffect(() => {
     let active = true;
-
-    void refreshMonitoringSummary(() => active);
+    const timeoutId = window.setTimeout(() => {
+      void refreshMonitoringSummary(() => active);
+    }, 0);
 
     return () => {
       active = false;
+      window.clearTimeout(timeoutId);
     };
   }, [refreshMonitoringSummary]);
 
