@@ -11,8 +11,11 @@
     "test:smoke": "vitest run tests/api/maintenance.smoke.test.ts --pool=threads",
     "test:e2e": "playwright test",
     "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
+    "fix": "npm run format && npm run lint:fix && npm run build && npm run typecheck && npm run test",
+    "reinstall": "node -e \"for (const path of ['node_modules', 'package-lock.json', '.next', 'out', 'coverage', 'test-results', 'lib/generated/prisma', 'tsconfig.tsbuildinfo', 'tsconfig.smoke.tsbuildinfo']) { try { require('node:fs').rmSync(path, { recursive: true, force: true }); } catch {} }\" && npm i",
     "postinstall": "prisma generate",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
@@ -22,8 +25,7 @@
     "graph:serve": "code-review-graph serve",
     "ops:schema:drift": "node scripts/ops/check-schema-drift.mjs",
     "ops:restore:check": "node scripts/ops/validate-restored-database.mjs",
-    "ops:monitoring:check": "node scripts/ops/check-monitoring-route.mjs",
-    "custom": "npm run build && npm run typecheck && npm run test && npm run lint && npm run format"
+    "ops:monitoring:check": "node scripts/ops/check-monitoring-route.mjs"
   },
   "dependencies": {
     "@prisma/adapter-pg": "7.4.2",
@@ -40,7 +42,7 @@
     "@types/node": "20",
     "@types/react": "19",
     "@types/react-dom": "19",
-    "eslint": "9",
+    "eslint": "10.0.0",
     "eslint-config-next": "16.1.6",
     "eslint-config-prettier": "10.1.8",
     "prettier": "3.8.1",
