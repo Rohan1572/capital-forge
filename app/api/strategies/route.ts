@@ -1,4 +1,4 @@
-import { DbNull, type InputJsonValue } from "@prisma/client/runtime/client";
+import { DbNull, type InputJsonObject, type InputJsonValue } from "@prisma/client/runtime/client";
 import { NextResponse } from "next/server";
 import { RISK_FREE_RATE } from "@/lib/env";
 import { validateAllocation } from "@/lib/allocationValidation";
@@ -125,15 +125,15 @@ function buildStrategyAuditMetadata(params: {
   shockModifiers: unknown;
   simulationLatencyMs: number | null;
   simulationMode: string | null;
-}) {
+}): InputJsonObject {
   return {
     strategyId: params.strategyId,
-    allocation: params.allocation,
-    metrics: params.metrics,
+    allocation: params.allocation as InputJsonValue,
+    metrics: params.metrics as InputJsonValue,
     assumptionsVersion: params.assumptionsVersion,
     seed: params.seed,
     shockId: params.shockId,
-    shockModifiers: params.shockModifiers,
+    shockModifiers: params.shockModifiers as InputJsonValue,
     simulationLatencyMs: params.simulationLatencyMs,
     simulationMode: params.simulationMode,
   };
@@ -165,17 +165,29 @@ export async function POST(request: Request) {
       const clonedStrategy = await prisma.strategy.create({
         data: {
           userId: user.id,
-          allocation: sourceStrategy.allocation,
-          metrics: sourceStrategy.metrics,
+          allocation: sourceStrategy.allocation as InputJsonValue,
+          metrics: sourceStrategy.metrics as InputJsonValue,
           assumptionsVersion: sourceStrategy.assumptionsVersion,
-          assumptions: sourceStrategy.assumptions,
+          assumptions:
+            sourceStrategy.assumptions == null
+              ? DbNull
+              : (sourceStrategy.assumptions as InputJsonValue),
           seed: sourceStrategy.seed,
           shockId: sourceStrategy.shockId,
-          shockModifiers: sourceStrategy.shockModifiers,
-          simulationResults: sourceStrategy.simulationResults,
+          shockModifiers:
+            sourceStrategy.shockModifiers == null
+              ? DbNull
+              : (sourceStrategy.shockModifiers as InputJsonValue),
+          simulationResults:
+            sourceStrategy.simulationResults == null
+              ? DbNull
+              : (sourceStrategy.simulationResults as InputJsonValue),
           simulationSeed: sourceStrategy.simulationSeed,
           simulationMode: sourceStrategy.simulationMode,
-          simulationShock: sourceStrategy.simulationShock,
+          simulationShock:
+            sourceStrategy.simulationShock == null
+              ? DbNull
+              : (sourceStrategy.simulationShock as InputJsonValue),
         },
       });
 

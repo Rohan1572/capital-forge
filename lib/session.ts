@@ -1,8 +1,9 @@
 import { cookies } from "next/headers";
 import { prisma } from "./prisma";
 import { getSessionCookieName } from "./auth";
+import type { User } from "./generated/prisma/client";
 
-export type SessionUser = Pick<PrismaUser, "id" | "email" | "name" | "createdAt">;
+export type SessionUser = Pick<User, "id" | "email" | "name" | "createdAt">;
 
 export async function getSessionUser(): Promise<SessionUser | null> {
   const cookieStore = await cookies();
@@ -10,10 +11,14 @@ export async function getSessionUser(): Promise<SessionUser | null> {
 
   if (!token) return null;
 
-  const session = (await prisma.session.findUnique({
+  const session = await prisma.session.findUnique({
     where: { token },
-    include: { user: true },
-  })) as (PrismaSession & { user: SessionUser }) | null;
+    select: {
+      id: true,
+      expiresAt: true,
+      user: { select: { id: true, email: true, name: true, createdAt: true } },
+    },
+  });
 
   if (!session) return null;
 

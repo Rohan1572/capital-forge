@@ -18,7 +18,17 @@ Open [http://localhost:3000](http://localhost:3000) with your browser to see the
 
 You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Scripts
+
+- `npm run dev` — start the development server
+- `npm run build` — production build
+- `npm run typecheck` — run the TypeScript compiler
+- `npm run test` — run unit and integration tests (Vitest)
+- `npm run test:e2e` — run end-to-end tests (Playwright)
+- `npm run lint` / `npm run format` — ESLint and Prettier
+- `npm run prisma:generate` / `npm run prisma:migrate` — Prisma Client and migrations
+
+Environment variables are documented in [`.env.example`](./.env.example); copy it to `.env` and fill in the values before running the app. Prisma Client is generated into `lib/generated/prisma` by the `postinstall` script.
 
 ## Learn More
 
