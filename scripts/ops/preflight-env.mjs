@@ -2,8 +2,9 @@
  * Verifies the operator secrets required in production are present.
  * `--strict` also fails on variables that otherwise only warn.
  */
-import { readFileSync } from "node:fs";
 import process from "node:process";
+
+import { loadDotEnv } from "./load-dot-env.mjs";
 
 const args = new Set(process.argv.slice(2));
 const isStrict = args.has("--strict");
@@ -37,32 +38,8 @@ const OPTIONAL = [
 const failures = [];
 const warnings = [];
 
-/** Minimal .env reader so this script has no runtime dependency. */
-function loadDotEnv() {
-  let contents;
-  try {
-    contents = readFileSync(new URL("../../.env", import.meta.url), "utf8");
-  } catch {
-    return;
-  }
-
-  for (const line of contents.split(/\r?\n/)) {
-    const match = /^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*)?\s*$/.exec(line);
-    if (!match) continue;
-
-    const key = match[1];
-    let value = (match[2] ?? "").trim();
-    if (
-      (value.startsWith('"') && value.endsWith('"') && value.length > 1) ||
-      (value.startsWith("'") && value.endsWith("'") && value.length > 1)
-    ) {
-      value = value.slice(1, -1);
-    }
-
-    process.env[key] ??= value;
-  }
-}
-
+// Real environment variables always take precedence over `.env`, so an operator
+// can override a value inline without editing the file.
 loadDotEnv();
 
 for (const name of REQUIRED) {

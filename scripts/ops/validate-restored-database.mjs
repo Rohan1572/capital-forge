@@ -1,4 +1,16 @@
+/**
+ * Validates a restored production backup before it is promoted.
+ *
+ * Set RESTORED_DATABASE_URL to validate a restored copy without touching the
+ * live database; it falls back to DATABASE_URL.
+ */
 import { Client } from "pg";
+
+import { loadDotEnv } from "./load-dot-env.mjs";
+
+// Without this the gate cannot see DATABASE_URL when it is only defined in
+// `.env`, and it would fail with a misleading "is required" error.
+loadDotEnv();
 
 const databaseUrl = process.env.RESTORED_DATABASE_URL ?? process.env.DATABASE_URL;
 

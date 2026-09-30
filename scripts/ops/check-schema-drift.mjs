@@ -10,6 +10,13 @@
  */
 import { spawnSync } from "node:child_process";
 
+import { loadDotEnv } from "./load-dot-env.mjs";
+
+// `prisma migrate diff` is spawned with the inherited environment below, and
+// Prisma 7 no longer loads `.env` on its own. Loading it here means a local run
+// sees the same DATABASE_URL the app does.
+loadDotEnv();
+
 const result = spawnSync(
   "prisma",
   [

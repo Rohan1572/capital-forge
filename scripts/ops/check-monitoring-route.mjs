@@ -1,3 +1,15 @@
+/**
+ * Smoke-tests the monitoring route that alerting depends on.
+ *
+ * Requires an authenticated session, supplied as MONITORING_COOKIE or
+ * SESSION_COOKIE (for example `cf_session=<value>`).
+ */
+import { loadDotEnv } from "./load-dot-env.mjs";
+
+// Without this the gate cannot see a cookie defined only in `.env`, and it
+// would fail with a misleading "is required" error.
+loadDotEnv();
+
 const monitoringUrl = process.env.MONITORING_URL ?? "http://localhost:3000/api/monitoring?days=30";
 const sessionCookie = process.env.MONITORING_COOKIE ?? process.env.SESSION_COOKIE;
 
