@@ -1,6 +1,12 @@
 import { NextResponse } from "next/server";
 import { estimateAiCostUsd } from "@/lib/aiCost";
 import { recordAiResponseLog } from "@/lib/aiResponseLog";
+import {
+  OpenRouterUpstreamError,
+  callOpenRouter,
+  describeOpenRouterError,
+  resolveOpenRouterConfig,
+} from "@/lib/openrouter";
 import { buildNeutralDebateResponse, checkAiAdviceLanguage } from "@/lib/aiSafety";
 import { validateAllocation } from "@/lib/allocationValidation";
 import type { Allocation } from "@/lib/monteCarlo";
@@ -44,7 +50,6 @@ type DebateCacheEntry = {
 };
 
 const debateCache = new TTLCache<DebateCacheEntry>({ ttlMs: 5 * 60 * 1000, maxSize: 150 });
-const OPENAI_API_URL = "https://api.openai.com/v1/responses";
 
 function getClientKey(request: Request) {
   const forwarded = request.headers.get("x-forwarded-for") ?? "";
@@ -107,12 +112,11 @@ export async function POST(request: Request) {
       });
     }
 
-    const apiKey = process.env.OPENAI_API_KEY;
-    if (!apiKey) {
-      return NextResponse.json({ error: "OPENAI_API_KEY is not configured." }, { status: 500 });
+    const openRouterConfig = resolveOpenRouterConfig();
+    if (!openRouterConfig.ok) {
+      return NextResponse.json({ error: openRouterConfig.error }, { status: 503 });
     }
 
-    const model = process.env.OPENAI_MODEL ?? "gpt-4.1-mini";
     const callMetas: DebateAiCallMeta[] = [];
     const usageTotals: DebateAiUsage = {};
     let hasUsage = false;
@@ -122,74 +126,30 @@ export async function POST(request: Request) {
       allocation,
       metrics: body.metrics,
       invokeAgent: async ({ role, prompt }) => {
-        const callStart = Date.now();
-        const response = await fetch(OPENAI_API_URL, {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${apiKey}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            model,
-            input: prompt,
-            instructions:
-              "Return concise bullet points under headings: Opening Statement, Counterpoints, Recommendation.",
-            store: process.env.OPENAI_STORE_RESPONSES === "true",
-          }),
+        const call = await callOpenRouter({
+          config: openRouterConfig.config,
+          label: `debate agent (${role})`,
+          prompt,
+          instructions:
+            "Return concise bullet points under headings: Opening Statement, Counterpoints, Recommendation.",
         });
 
-        const callLatencyMs = Date.now() - callStart;
-
-        if (!response.ok) {
-          const errorBody = await response.text();
-          console.error("OpenAI debate agent request failed", response.status, errorBody);
-          throw new Error("OpenAI debate agent call failed.");
-        }
-
-        const payload = (await response.json()) as {
-          output?: Array<{
-            type: string;
-            content?: Array<{ type: string; text?: string }>;
-          }>;
-          output_text?: string;
-          model?: string;
-          usage?: { input_tokens?: number; output_tokens?: number; total_tokens?: number };
-        };
-
-        const outputText =
-          payload.output_text ??
-          payload.output
-            ?.find((item) => item.type === "message")
-            ?.content?.find((part) => part.type === "output_text")?.text;
-
-        if (!outputText) {
-          throw new Error("OpenAI debate response missing output text.");
-        }
-
-        const callUsage = payload.usage
-          ? {
-              inputTokens: payload.usage.input_tokens,
-              outputTokens: payload.usage.output_tokens,
-              totalTokens: payload.usage.total_tokens,
-            }
-          : undefined;
-
-        if (callUsage?.inputTokens || callUsage?.outputTokens || callUsage?.totalTokens) {
+        if (call.usage.inputTokens || call.usage.outputTokens || call.usage.totalTokens) {
           hasUsage = true;
-          usageTotals.inputTokens = (usageTotals.inputTokens ?? 0) + (callUsage.inputTokens ?? 0);
+          usageTotals.inputTokens = (usageTotals.inputTokens ?? 0) + (call.usage.inputTokens ?? 0);
           usageTotals.outputTokens =
-            (usageTotals.outputTokens ?? 0) + (callUsage.outputTokens ?? 0);
-          usageTotals.totalTokens = (usageTotals.totalTokens ?? 0) + (callUsage.totalTokens ?? 0);
+            (usageTotals.outputTokens ?? 0) + (call.usage.outputTokens ?? 0);
+          usageTotals.totalTokens = (usageTotals.totalTokens ?? 0) + (call.usage.totalTokens ?? 0);
         }
 
         callMetas.push({
           role,
-          model: payload.model ?? model,
-          latencyMs: callLatencyMs,
-          usage: callUsage,
+          model: call.model,
+          latencyMs: call.latencyMs,
+          usage: call.usage,
         });
 
-        return outputText;
+        return call.text;
       },
     });
 
@@ -203,7 +163,7 @@ export async function POST(request: Request) {
       : result.calls;
     const sections = sanitizedCalls.map((call) => parseDebateSections(call.response));
     const meta: DebateAiMeta = {
-      model,
+      model: callMetas[0]?.model ?? openRouterConfig.config.model,
       latencyMs: Date.now() - startTime,
       estimatedCostUsd: estimateAiCostUsd(usageTotals),
       safetyNotice: safety.disclaimer,
@@ -226,6 +186,11 @@ export async function POST(request: Request) {
       data: { calls: sanitizedCalls, sections, meta, cached: false },
     });
   } catch (error) {
+    if (error instanceof OpenRouterUpstreamError) {
+      const failure = describeOpenRouterError(error.status);
+      return NextResponse.json({ error: failure.error }, { status: failure.status });
+    }
+
     console.error("Failed to generate AI debate", error);
     return NextResponse.json({ error: "Unable to generate AI response." }, { status: 500 });
   }

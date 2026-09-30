@@ -1,6 +1,12 @@
 import { NextResponse } from "next/server";
 import { buildRiskExplainerPrompt, buildRiskPromptInput } from "@/lib/aiPrompts";
 import { estimateAiCostUsd } from "@/lib/aiCost";
+import {
+  OpenRouterUpstreamError,
+  callOpenRouter,
+  describeOpenRouterError,
+  resolveOpenRouterConfig,
+} from "@/lib/openrouter";
 import { recordAiResponseLog } from "@/lib/aiResponseLog";
 import { buildNeutralAiWarningMarkdown, checkAiAdviceLanguage } from "@/lib/aiSafety";
 import { validateAllocation } from "@/lib/allocationValidation";
@@ -35,8 +41,6 @@ type RiskCacheEntry = {
 };
 
 const riskCache = new TTLCache<RiskCacheEntry>({ ttlMs: 5 * 60 * 1000, maxSize: 200 });
-
-const OPENAI_API_URL = "https://api.openai.com/v1/responses";
 
 function buildRiskSchema() {
   return {
@@ -173,89 +177,41 @@ export async function POST(request: Request) {
     }
 
     const promptInput = buildRiskPromptInput(allocation, body.metrics);
-    const apiKey = process.env.OPENAI_API_KEY;
-    if (!apiKey) {
-      return NextResponse.json({ error: "OPENAI_API_KEY is not configured." }, { status: 500 });
+    const openRouterConfig = resolveOpenRouterConfig();
+    if (!openRouterConfig.ok) {
+      return NextResponse.json({ error: openRouterConfig.error }, { status: 503 });
     }
 
-    const model = process.env.OPENAI_MODEL ?? "gpt-4.1-mini";
     const instructions = [
       "Return only JSON that matches the provided schema.",
       "Do not include markdown, prose outside the JSON, or additional keys.",
     ].join(" ");
     const prompt = buildRiskExplainerPrompt(promptInput);
 
-    const startTime = Date.now();
-    const response = await fetch(OPENAI_API_URL, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
+    const result = await callOpenRouter({
+      config: openRouterConfig.config,
+      label: "risk explainer",
+      prompt,
+      instructions,
+      jsonSchema: {
+        name: "risk_explainer",
+        description:
+          "Portfolio risk explainer with headings mapped to bullet arrays for markdown rendering.",
+        schema: buildRiskSchema(),
       },
-      body: JSON.stringify({
-        model,
-        input: prompt,
-        instructions,
-        text: {
-          format: {
-            type: "json_schema",
-            name: "risk_explainer",
-            description:
-              "Portfolio risk explainer with headings mapped to bullet arrays for markdown rendering.",
-            strict: true,
-            schema: buildRiskSchema(),
-          },
-        },
-        store: process.env.OPENAI_STORE_RESPONSES === "true",
-      }),
     });
-    const latencyMs = Date.now() - startTime;
 
-    if (!response.ok) {
-      const errorBody = await response.text();
-      console.error("OpenAI risk explainer request failed", response.status, errorBody);
-      return NextResponse.json({ error: "Unable to generate AI response." }, { status: 500 });
-    }
-
-    const payload = (await response.json()) as {
-      output?: Array<{
-        type: string;
-        content?: Array<{ type: string; text?: string }>;
-      }>;
-      output_text?: string;
-      model?: string;
-      usage?: { input_tokens?: number; output_tokens?: number; total_tokens?: number };
-    };
-
-    const outputText =
-      payload.output_text ??
-      payload.output
-        ?.find((item) => item.type === "message")
-        ?.content?.find((part) => part.type === "output_text")?.text;
-
-    if (!outputText) {
-      throw new TypeError("OpenAI response missing output text.");
-    }
-
-    const json = parseRiskExplainerJson(JSON.parse(outputText));
+    const json = parseRiskExplainerJson(JSON.parse(result.text));
     const markdown = buildRiskMarkdown(json);
     const safety = checkAiAdviceLanguage(markdown);
     const responseMarkdown = safety.flagged ? buildNeutralAiWarningMarkdown() : markdown;
     const meta: RiskAiMeta = {
-      model: payload.model ?? model,
-      latencyMs,
-      estimatedCostUsd: estimateAiCostUsd({
-        inputTokens: payload.usage?.input_tokens,
-        outputTokens: payload.usage?.output_tokens,
-        totalTokens: payload.usage?.total_tokens,
-      }),
+      model: result.model,
+      latencyMs: result.latencyMs,
+      estimatedCostUsd: estimateAiCostUsd(result.usage),
       safetyNotice: safety.disclaimer,
       safetyMatchedTerms: safety.matchedTerms.length > 0 ? safety.matchedTerms : undefined,
-      usage: {
-        inputTokens: payload.usage?.input_tokens,
-        outputTokens: payload.usage?.output_tokens,
-        totalTokens: payload.usage?.total_tokens,
-      },
+      usage: result.usage,
     };
 
     riskCache.set(cacheKey, { markdown: responseMarkdown, meta });
@@ -270,6 +226,11 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ data: { markdown: responseMarkdown, meta, cached: false } });
   } catch (error) {
+    if (error instanceof OpenRouterUpstreamError) {
+      const failure = describeOpenRouterError(error.status);
+      return NextResponse.json({ error: failure.error }, { status: failure.status });
+    }
+
     console.error("Failed to generate AI risk explainer", error);
     return NextResponse.json({ error: "Unable to generate AI response." }, { status: 500 });
   }

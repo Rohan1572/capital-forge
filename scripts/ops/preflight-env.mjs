@@ -12,7 +12,7 @@ const isProduction = process.env.NODE_ENV === "production" || isStrict;
 
 /** Placeholder values that must never reach a real deployment. */
 const PLACEHOLDERS = new Set([
-  "your-openai-api-key",
+  "your-openrouter-api-key",
   "your-cron-secret",
   "your-admin-trigger-secret",
   "your-reset-token-secret",
@@ -20,15 +20,15 @@ const PLACEHOLDERS = new Set([
 
 const REQUIRED = [
   "DATABASE_URL",
-  "OPENAI_API_KEY",
+  "OPENROUTER_API_KEY",
   "CRON_SECRET",
   "ADMIN_TRIGGER_SECRET",
   "RESET_TOKEN_SECRET",
 ];
 
 const OPTIONAL = [
-  { name: "OPENAI_MODEL", fallback: "gpt-4.1-mini" },
-  { name: "OPENAI_STORE_RESPONSES", fallback: "false" },
+  { name: "OPENROUTER_MODEL", fallback: "qwen/qwen3.8-27b:free" },
+  { name: "OPENROUTER_DATA_COLLECTION", fallback: "allow" },
   { name: "AI_INPUT_COST_PER_1M_TOKENS", fallback: "0" },
   { name: "AI_OUTPUT_COST_PER_1M_TOKENS", fallback: "0" },
   { name: "RISK_FREE_RATE", fallback: "0.02" },

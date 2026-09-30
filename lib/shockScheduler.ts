@@ -1,4 +1,5 @@
 import { buildShockGeneratorPrompt } from "./aiPrompts";
+import { callOpenRouter, resolveOpenRouterConfig } from "./openrouter";
 
 type ShockModifiers = {
   meanShift: number;
@@ -47,8 +48,6 @@ export type WeeklyShockResult = {
   meta: ShockAiMeta;
   weekStart: Date;
 };
-
-const OPENAI_API_URL = "https://api.openai.com/v1/responses";
 
 function buildShockSchema() {
   return {
@@ -126,73 +125,30 @@ async function generateShock(context: ShockGenerationContext): Promise<{
   shock: GeneratedShock;
   meta: ShockAiMeta;
 }> {
-  const apiKey = process.env.OPENAI_API_KEY;
-  if (!apiKey) {
-    throw new TypeError("OPENAI_API_KEY is not configured.");
+  const openRouterConfig = resolveOpenRouterConfig();
+  if (!openRouterConfig.ok) {
+    throw new TypeError(openRouterConfig.error);
   }
 
-  const model = process.env.OPENAI_MODEL ?? "gpt-4.1-mini";
   const prompt = buildShockGeneratorPrompt(context);
-  const startTime = Date.now();
 
-  const response = await fetch(OPENAI_API_URL, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
+  const call = await callOpenRouter({
+    config: openRouterConfig.config,
+    label: "shock generator",
+    prompt,
+    jsonSchema: {
+      name: "weekly_shock",
+      description: "Weekly macro shock scenario with market impact bullets and modifiers.",
+      schema: buildShockSchema(),
     },
-    body: JSON.stringify({
-      model,
-      input: prompt,
-      text: {
-        format: {
-          type: "json_schema",
-          name: "weekly_shock",
-          description: "Weekly macro shock scenario with market impact bullets and modifiers.",
-          strict: true,
-          schema: buildShockSchema(),
-        },
-      },
-      store: process.env.OPENAI_STORE_RESPONSES === "true",
-    }),
   });
-  const latencyMs = Date.now() - startTime;
-
-  if (!response.ok) {
-    const errorBody = await response.text();
-    throw new TypeError(`OpenAI shock request failed: ${response.status} ${errorBody}`);
-  }
-
-  const payload = (await response.json()) as {
-    output?: Array<{
-      type: string;
-      content?: Array<{ type: string; text?: string }>;
-    }>;
-    output_text?: string;
-    model?: string;
-    usage?: { input_tokens?: number; output_tokens?: number; total_tokens?: number };
-  };
-
-  const outputText =
-    payload.output_text ??
-    payload.output
-      ?.find((item) => item.type === "message")
-      ?.content?.find((part) => part.type === "output_text")?.text;
-
-  if (!outputText) {
-    throw new TypeError("OpenAI response missing output text.");
-  }
 
   return {
-    shock: parseShockPayload(JSON.parse(outputText)),
+    shock: parseShockPayload(JSON.parse(call.text)),
     meta: {
-      model: payload.model ?? model,
-      latencyMs,
-      usage: {
-        inputTokens: payload.usage?.input_tokens,
-        outputTokens: payload.usage?.output_tokens,
-        totalTokens: payload.usage?.total_tokens,
-      },
+      model: call.model,
+      latencyMs: call.latencyMs,
+      usage: call.usage,
     },
   };
 }

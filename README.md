@@ -11,13 +11,13 @@ Vitest, and Playwright.
 
 - Node.js >= 20.9
 - A PostgreSQL database
-- An OpenAI API key (for the AI critique, debate, and risk routes)
+- An OpenRouter API key (for the AI critique, debate, and risk routes)
 
 ## Getting Started
 
 ```bash
 npm install          # also runs `prisma generate` via postinstall
-cp .env.example .env # then fill in DATABASE_URL and OPENAI_API_KEY
+cp .env.example .env # then fill in DATABASE_URL and OPENROUTER_API_KEY
 npm run prisma:migrate
 npm run dev
 ```
@@ -83,11 +83,33 @@ These back the launch gates described in
 ## Environment
 
 All variables are documented in [`.env.example`](./.env.example). Required in
-production: `DATABASE_URL`, `OPENAI_API_KEY`, `CRON_SECRET`,
+production: `DATABASE_URL`, `OPENROUTER_API_KEY`, `CRON_SECRET`,
 `ADMIN_TRIGGER_SECRET`, and `RESET_TOKEN_SECRET`.
 
 `RESET_TOKEN_SECRET` signs password-reset tokens. The app refuses to start
 without it when `NODE_ENV=production`.
+
+### AI Provider
+
+The AI critique, debate, and risk routes call **OpenRouter**
+(`/api/v1/chat/completions`), configured through the `OPENROUTER_*` variables.
+
+- `OPENROUTER_API_KEY` — required. Create one at
+  [openrouter.ai/keys](https://openrouter.ai/keys).
+- `OPENROUTER_MODEL` — any slug from [openrouter.ai/models](https://openrouter.ai/models) that
+  supports structured outputs; the risk and shock routes request a strict JSON
+  schema. Defaults to `qwen/qwen3.8-27b:free`, which is free but capped at a
+  small daily request budget — set a paid slug when that limit matters more
+  than cost.
+- `OPENROUTER_DATA_COLLECTION` — defaults to `allow`, which widens provider
+  choice. Setting `deny` routes only to providers that do not train on your
+  prompts, but the free endpoints do not satisfy that policy, so it leaves no
+  available route on the free tier.
+- `OPENROUTER_SITE_URL` / `OPENROUTER_APP_TITLE` — optional attribution headers
+  used by OpenRouter for its public leaderboards.
+
+Upstream failures are surfaced distinctly: a rejected key returns `503`, a
+provider rate limit returns `429`, and other OpenRouter errors return `502`.
 
 ## Deployment
 
