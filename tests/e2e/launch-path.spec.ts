@@ -1,4 +1,4 @@
-﻿import { expect, test } from "@playwright/test";
+import { expect, test } from "@playwright/test";
 
 test("login, allocate, simulate, save, and rank", async ({ page, baseURL }) => {
   const appUrl = baseURL ?? "http://localhost:3000";

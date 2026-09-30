@@ -160,16 +160,6 @@ function buildAssumptionArrays(assumptions: AssetReturnAssumptions) {
   return { means, volatilities };
 }
 
-export function generateAssetYearlyReturn(
-  asset: AssetKey,
-  assumptions: AssetReturnAssumptions = assetReturnAssumptions,
-  seed?: number,
-): number {
-  const { mean, volatility } = assumptions[asset];
-  const random = resolveRandomSource(seed);
-  return mean + volatility * sampleStandardNormal(random);
-}
-
 export function generateYearlyAssetReturns(
   assumptions: AssetReturnAssumptions = assetReturnAssumptions,
   seed?: number,

@@ -44,8 +44,8 @@ function renderMarkdownBlocks(markdown: string) {
     if (listItems.length === 0) return;
     elements.push(
       <ul key={`list-${key++}`} className="list-disc space-y-2 pl-5 text-sm text-zinc-200">
-        {listItems.map((item, index) => (
-          <li key={`${item}-${index}`}>{item}</li>
+        {listItems.map((item) => (
+          <li key={item}>{item}</li>
         ))}
       </ul>,
     );
@@ -119,7 +119,7 @@ export function RiskExplainerPanel({ markdown, meta }: RiskExplainerPanelProps) 
             ) : null}
             {typeof meta.estimatedCostUsd === "number" ? (
               <span className="rounded-full border border-zinc-700 bg-zinc-950 px-2.5 py-1 text-zinc-300">
-                Cost: ${meta.estimatedCostUsd.toFixed(4)}
+                Cost: {`$${meta.estimatedCostUsd.toFixed(4)}`}
               </span>
             ) : null}
           </div>

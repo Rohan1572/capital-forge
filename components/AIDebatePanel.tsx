@@ -45,8 +45,8 @@ function renderList(items: readonly string[], fallback: string) {
 
   return (
     <ul className="space-y-1 text-sm text-zinc-100">
-      {items.map((item, index) => (
-        <li key={`${item}-${index}`} className="leading-relaxed">
+      {items.map((item) => (
+        <li key={item} className="leading-relaxed">
           {item}
         </li>
       ))}
@@ -75,7 +75,7 @@ export function AIDebatePanel({ calls, meta }: AIDebatePanelProps) {
             </span>
             {typeof meta.estimatedCostUsd === "number" ? (
               <span className="rounded-full border border-zinc-700 bg-zinc-950 px-2.5 py-1 text-zinc-300">
-                Cost: ${meta.estimatedCostUsd.toFixed(4)}
+                Cost: {`$${meta.estimatedCostUsd.toFixed(4)}`}
               </span>
             ) : null}
             {meta.cached ? (
@@ -107,7 +107,7 @@ export function AIDebatePanel({ calls, meta }: AIDebatePanelProps) {
 
           return (
             <article
-              key={`${call.role}-${index}`}
+              key={call.role}
               className={`rounded-xl border px-4 py-4 ${roleAccent[call.role]}`}
             >
               <div className="flex flex-wrap items-center justify-between gap-2">

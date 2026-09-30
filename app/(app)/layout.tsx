@@ -1,4 +1,4 @@
-﻿import type { ReactNode } from "react";
+import type { ReactNode } from "react";
 import { AppShell } from "@/components/AppShell";
 import { getSessionUser } from "@/lib/session";
 

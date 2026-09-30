@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { type ValueType } from "recharts/types/component/DefaultTooltipContent";
+import { type ChartTooltipValue } from "@/components/chartTypes";
 import { Legend, Pie, PieChart, Tooltip } from "recharts";
 
 export type AllocationChartEntry = {
@@ -26,7 +26,7 @@ function formatPercent(value: number) {
   return `${value.toFixed(1)}%`;
 }
 
-function formatTooltipValue(value: ValueType | undefined) {
+function formatTooltipValue(value: ChartTooltipValue | undefined) {
   if (typeof value === "number") {
     return `${value.toFixed(1)}%`;
   }

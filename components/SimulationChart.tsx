@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { type ValueType } from "recharts/types/component/DefaultTooltipContent";
+import { type ChartTooltipValue } from "@/components/chartTypes";
 import {
   Bar,
   BarChart,
@@ -106,7 +106,7 @@ function formatPercent(value: number, digits = 2): string {
   return `${(value * 100).toFixed(digits)}%`;
 }
 
-function formatScenarioTooltipValue(value: ValueType | undefined) {
+function formatScenarioTooltipValue(value: ChartTooltipValue | undefined) {
   if (typeof value === "number") {
     return `${value.toFixed(2)}%`;
   }
