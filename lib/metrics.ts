@@ -52,14 +52,20 @@ export function maxDrawdown(periodReturns: readonly number[]): number {
   let maxObservedDrawdown = 0;
 
   for (const periodReturn of periodReturns) {
-    wealth *= 1 + periodReturn;
+    // A return at or below -100% is a total loss; going negative would make the
+    // drawdown ratio exceed 1 and diverge.
+    wealth *= Math.max(1 + periodReturn, 0);
     peak = Math.max(peak, wealth);
 
+    if (peak <= 0) continue;
+
     const drawdown = (peak - wealth) / peak;
-    maxObservedDrawdown = Math.max(maxObservedDrawdown, drawdown);
+    if (Number.isFinite(drawdown)) {
+      maxObservedDrawdown = Math.max(maxObservedDrawdown, drawdown);
+    }
   }
 
-  return maxObservedDrawdown;
+  return Math.min(maxObservedDrawdown, 1);
 }
 
 export function valueAtRisk(values: readonly number[], percentileLevel = 0.05): number {

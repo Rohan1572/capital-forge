@@ -132,6 +132,32 @@ describe("runMonteCarloSimulation crash regime", () => {
   });
 });
 
+describe("runMonteCarloSimulation outcome bounds", () => {
+  it("never produces a return below a total loss", () => {
+    const outcomes = runMonteCarloSimulation(
+      { equity: 10, startups: 10, bonds: 10, gold: 10, crypto: 50, cash: 10 },
+      undefined,
+      undefined,
+      42,
+    );
+
+    expect(Math.min(...outcomes)).toBeGreaterThanOrEqual(-1);
+  });
+
+  it("keeps compounded metrics finite for a high-volatility allocation", () => {
+    const outcomes = runMonteCarloSimulation(
+      { equity: 10, startups: 10, bonds: 10, gold: 10, crypto: 50, cash: 10 },
+      undefined,
+      undefined,
+      42,
+    );
+    const metrics = computeSimulationMetrics(outcomes, 0.02);
+
+    expect(Number.isFinite(metrics.maxDrawdown)).toBe(true);
+    expect(metrics.maxDrawdown).toBeLessThanOrEqual(1);
+  });
+});
+
 describe("runMonteCarloSimulationWithShock", () => {
   it("moves the core metrics when a downside shock is applied", () => {
     const allocation = {

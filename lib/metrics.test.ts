@@ -70,6 +70,19 @@ describe("maxDrawdown", () => {
     const returns = [0.1, -0.2, 0.05, -0.3, 0.4];
     expect(maxDrawdown(returns)).toBeCloseTo(0.412, 10);
   });
+
+  it("caps drawdown at a total loss", () => {
+    expect(maxDrawdown([-1])).toBe(1);
+    expect(maxDrawdown([0.5, -1, 0.5])).toBe(1);
+  });
+
+  it("does not diverge when a return falls below -100%", () => {
+    const returns = [-0.5, -1.5, -0.2, 0.3, -1.2];
+    const drawdown = maxDrawdown(returns);
+
+    expect(Number.isFinite(drawdown)).toBe(true);
+    expect(drawdown).toBeLessThanOrEqual(1);
+  });
 });
 
 describe("valueAtRisk", () => {

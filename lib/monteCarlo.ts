@@ -26,6 +26,8 @@ export type Allocation = {
 };
 
 const MONTE_CARLO_ITERATIONS = 10_000;
+/** A loss cannot exceed the whole position, so the unbounded normal tail is capped. */
+const MIN_PERIOD_RETURN = -1;
 const assetKeys = Object.keys(assetReturnAssumptions) as AssetKey[];
 
 function buildCorrelationArray(correlation: CorrelationMatrix): number[][] {
@@ -252,7 +254,7 @@ export function runMonteCarloSimulation(
         (means[assetIndex] + volatility * samples[assetIndex] + (crashShock ?? 0));
     }
 
-    outcomes[iteration] = portfolioReturn;
+    outcomes[iteration] = Math.max(portfolioReturn, MIN_PERIOD_RETURN);
   }
 
   return outcomes;
