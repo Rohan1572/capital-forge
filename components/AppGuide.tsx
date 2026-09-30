@@ -290,7 +290,7 @@ export function AppGuide() {
           aria-labelledby="onboarding-title"
           aria-describedby="onboarding-description"
           tabIndex={-1}
-          className="relative fixed inset-0 z-50 flex items-end justify-center bg-black/70 px-4 py-6 backdrop-blur-sm sm:items-center"
+          className="fixed inset-0 z-50 flex h-dvh w-full items-end justify-center bg-black/70 px-4 py-6 backdrop-blur-sm sm:items-center"
         >
           <button
             type="button"
@@ -389,7 +389,7 @@ export function AppGuide() {
           aria-modal="true"
           aria-labelledby="glossary-title"
           tabIndex={-1}
-          className="relative fixed inset-0 z-50 bg-black/55 backdrop-blur-sm"
+          className="fixed inset-0 z-50 h-dvh w-full bg-black/55 backdrop-blur-sm"
         >
           <button
             type="button"
