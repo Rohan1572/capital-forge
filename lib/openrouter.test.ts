@@ -5,6 +5,7 @@ import {
   OpenRouterUpstreamError,
   callOpenRouter,
   describeOpenRouterError,
+  describeRateLimit,
   isPlaceholderApiKey,
   resolveOpenRouterConfig,
   type OpenRouterConfig,
@@ -235,6 +236,26 @@ describe("callOpenRouter", () => {
     }
   });
 
+  it("captures the provider rate-limit reset time on a 429", async () => {
+    const resetAt = Date.now() + 4 * 60 * 60 * 1000;
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockImplementation(
+      async () =>
+        new Response("rate limited", {
+          status: 429,
+          headers: { "x-ratelimit-reset": String(resetAt) },
+        }),
+    );
+
+    try {
+      await expect(callOpenRouter({ config, label: "test", prompt: "hi" })).rejects.toMatchObject({
+        status: 429,
+        retryAt: resetAt,
+      });
+    } finally {
+      fetchSpy.mockRestore();
+    }
+  });
+
   it("throws OpenRouterUpstreamError carrying the status", async () => {
     const fetchSpy = vi
       .spyOn(globalThis, "fetch")
@@ -247,6 +268,36 @@ describe("callOpenRouter", () => {
     } finally {
       fetchSpy.mockRestore();
     }
+  });
+});
+
+describe("describeRateLimit", () => {
+  it("reports the real wait when the provider reports a reset time", () => {
+    const retryAt = Date.now() + 4 * 60 * 60 * 1000;
+    const result = describeRateLimit(retryAt, "AI insights");
+
+    expect(result.retryAt).toBe(retryAt);
+    expect(result.message).toMatch(/resets in about \d+ hours/);
+  });
+
+  it("reports minutes for a short throttle", () => {
+    const result = describeRateLimit(Date.now() + 60_000, "AI insights");
+
+    expect(result.message).toContain("minute");
+    expect(result.message).not.toContain("hours");
+  });
+
+  it("says to try again when the provider gives no reset time", () => {
+    const result = describeRateLimit(null, "AI insights");
+
+    expect(result.retryAt).toBeNull();
+    expect(result.message).toContain("try again shortly");
+  });
+
+  it("handles a reset time that has already passed", () => {
+    const result = describeRateLimit(Date.now() - 1000, "AI insights");
+
+    expect(result.message).toContain("available again now");
   });
 });
 

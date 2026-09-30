@@ -465,6 +465,20 @@ async function saveSimulationStrategy(params: {
   };
 }
 
+/** Prefers the server's message, which distinguishes a short throttle from a daily quota. */
+async function readAiError(response: Response, fallback: string) {
+  try {
+    const payload = (await response.json()) as { error?: string };
+    if (typeof payload?.error === "string" && payload.error.length > 0) {
+      return payload.error;
+    }
+  } catch {
+    // Not JSON; fall through to the generic message.
+  }
+
+  return fallback;
+}
+
 async function readAiRiskResponse(response: Response) {
   if (response.ok) {
     const payload = (await response.json()) as RiskAiResponse;
@@ -475,18 +489,17 @@ async function readAiRiskResponse(response: Response) {
     };
   }
 
-  if (response.status === 429) {
-    return {
-      markdown: null,
-      meta: null,
-      errorMessage: "AI insights are rate limited. Please wait a minute and try again.",
-    };
-  }
+  const errorMessage = await readAiError(
+    response,
+    response.status === 429
+      ? "AI insights are rate limited right now. Please try again shortly."
+      : "AI insights are unavailable right now.",
+  );
 
   return {
     markdown: null,
     meta: null,
-    errorMessage: "AI insights are unavailable right now.",
+    errorMessage,
   };
 }
 
@@ -500,18 +513,17 @@ async function readAiDebateResponse(response: Response) {
     };
   }
 
-  if (response.status === 429) {
-    return {
-      calls: null,
-      meta: null,
-      errorMessage: "AI debate insights are rate limited. Please wait a minute and try again.",
-    };
-  }
+  const errorMessage = await readAiError(
+    response,
+    response.status === 429
+      ? "AI debate insights are rate limited right now. Please try again shortly."
+      : "AI debate insights are unavailable right now.",
+  );
 
   return {
     calls: null,
     meta: null,
-    errorMessage: "AI debate insights are unavailable right now.",
+    errorMessage,
   };
 }
 

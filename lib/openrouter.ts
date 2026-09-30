@@ -83,12 +83,15 @@ export type OpenRouterConfigResult =
 export class OpenRouterUpstreamError extends Error {
   readonly status: number;
   readonly detail: string;
+  /** Epoch ms when the provider's rate limit window resets, when it reports one. */
+  readonly retryAt: number | null;
 
-  constructor(status: number, detail: string) {
+  constructor(status: number, detail: string, retryAt: number | null = null) {
     super(`OpenRouter request failed with status ${status}.`);
     this.name = "OpenRouterUpstreamError";
     this.status = status;
     this.detail = detail;
+    this.retryAt = retryAt;
   }
 }
 
@@ -232,6 +235,16 @@ type OpenRouterPayload = {
   usage?: { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number };
 };
 
+/** OpenRouter sends the rate-limit reset as epoch milliseconds. */
+function parseRetryAt(header: string | null): number | null {
+  if (!header) return null;
+
+  const parsed = Number(header);
+  if (!Number.isFinite(parsed) || parsed <= 0) return null;
+
+  return parsed;
+}
+
 /**
  * Calls OpenRouter and returns the output text with normalised usage. Throws
  * {@link OpenRouterUpstreamError} for provider-side failures so callers can map
@@ -251,7 +264,11 @@ export async function callOpenRouter(request: OpenRouterRequest): Promise<OpenRo
   if (!response.ok) {
     const detail = await response.text();
     console.error(`OpenRouter ${label} request failed`, response.status, detail);
-    throw new OpenRouterUpstreamError(response.status, detail);
+    throw new OpenRouterUpstreamError(
+      response.status,
+      detail,
+      parseRetryAt(response.headers.get("x-ratelimit-reset")),
+    );
   }
 
   const payload = (await response.json()) as OpenRouterPayload;
@@ -291,7 +308,45 @@ export type OpenRouterFailureResponse = {
  * see. A rejected key is a server configuration problem (503), not a broken
  * route (500), and a provider rate limit (429) should stay retryable.
  */
-export function describeOpenRouterError(status: number): OpenRouterFailureResponse {
+export type AiRateLimitInfo = {
+  retryAt: number | null;
+  message: string;
+};
+
+/**
+ * The free tier resets daily rather than per minute, so a fixed "try again
+ * shortly" would have the user retry immediately and fail again for hours.
+ */
+export function describeRateLimit(retryAt: number | null, subject = "AI"): AiRateLimitInfo {
+  if (retryAt === null) {
+    return {
+      retryAt,
+      message: `${subject} is rate limited right now. Please try again shortly.`,
+    };
+  }
+
+  const waitMs = retryAt - Date.now();
+
+  if (waitMs <= 0) {
+    return {
+      retryAt,
+      message: `${subject} hit its usage limit. It should be available again now.`,
+    };
+  }
+
+  const minutes = Math.ceil(waitMs / 60_000);
+  const when = minutes >= 60 ? `${Math.round(minutes / 60)} hours` : `${minutes} minute`;
+
+  return {
+    retryAt,
+    message: `${subject} reached its usage limit and resets in about ${when}.`,
+  };
+}
+
+export function describeOpenRouterError(
+  status: number,
+  retryAt: number | null = null,
+): OpenRouterFailureResponse {
   if (status === 401 || status === 403) {
     return {
       status: 503,
@@ -303,7 +358,7 @@ export function describeOpenRouterError(status: number): OpenRouterFailureRespon
   if (status === 429) {
     return {
       status: 429,
-      error: "OpenRouter is rate limiting requests. Please wait and try again.",
+      error: describeRateLimit(retryAt).message,
     };
   }
 

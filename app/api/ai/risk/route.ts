@@ -227,8 +227,15 @@ export async function POST(request: Request) {
     return NextResponse.json({ data: { markdown: responseMarkdown, meta, cached: false } });
   } catch (error) {
     if (error instanceof OpenRouterUpstreamError) {
-      const failure = describeOpenRouterError(error.status);
-      return NextResponse.json({ error: failure.error }, { status: failure.status });
+      const failure = describeOpenRouterError(error.status, error.retryAt);
+      const headers = new Headers();
+
+      if (error.retryAt) {
+        const retryAfterSeconds = Math.max(0, Math.ceil((error.retryAt - Date.now()) / 1000));
+        headers.set("Retry-After", retryAfterSeconds.toString());
+      }
+
+      return NextResponse.json({ error: failure.error }, { status: failure.status, headers });
     }
 
     console.error("Failed to generate AI risk explainer", error);
