@@ -1,11 +1,24 @@
 import crypto from "node:crypto";
 
 const PASSWORD_RESET_TTL_MINUTES = 60;
-const RESET_TOKEN_SECRET =
-  process.env["RESET_TOKEN_SECRET"] ??
-  process.env["RESET_SECRET"] ??
-  process.env["SESSION_SECRET"] ??
-  "capital-forge-reset-token-secret";
+
+/** Fails closed in production; the fixed fallback is development-only. */
+function resolveResetTokenSecret() {
+  const secret = process.env.RESET_TOKEN_SECRET?.trim();
+
+  if (secret) return secret;
+
+  if (process.env.NODE_ENV === "production") {
+    throw new Error(
+      "RESET_TOKEN_SECRET must be set in production. Generate one with: " +
+        "node -e \"console.log(require('node:crypto').randomBytes(32).toString('base64url'))\"",
+    );
+  }
+
+  return "capital-forge-development-reset-token-secret";
+}
+
+const RESET_TOKEN_SECRET = resolveResetTokenSecret();
 
 type PasswordResetTokenPayload = Readonly<{
   userId: string;
@@ -68,6 +81,7 @@ export function verifyPasswordResetToken(token: string): PasswordResetTokenPaylo
     const payload = JSON.parse(
       base64UrlDecode(encodedPayload),
     ) as Partial<PasswordResetTokenPayload>;
+
     if (
       typeof payload.userId !== "string" ||
       typeof payload.email !== "string" ||

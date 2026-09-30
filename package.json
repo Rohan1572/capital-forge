@@ -20,6 +20,8 @@
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:studio": "prisma studio",
+    "ops:preflight": "node scripts/ops/preflight-env.mjs",
+    "ops:preflight:strict": "node scripts/ops/preflight-env.mjs --strict",
     "ops:schema:drift": "node scripts/ops/check-schema-drift.mjs",
     "ops:restore:check": "node scripts/ops/validate-restored-database.mjs",
     "ops:monitoring:check": "node scripts/ops/check-monitoring-route.mjs"
