@@ -1,4 +1,4 @@
-﻿-- Persist the active leaderboard season month.
+-- Persist the active leaderboard season month.
 CREATE TABLE "LeaderboardSeason" (
     "id" TEXT NOT NULL,
     "scope" TEXT NOT NULL,
