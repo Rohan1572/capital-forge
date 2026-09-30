@@ -1,4 +1,5 @@
 # CapitalForge Roadmap
+
 ## AI-Powered Strategic Decision Simulation Platform
 
 ---

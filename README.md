@@ -1,63 +1,103 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# CapitalForge
+
+AI-powered strategic decision simulation platform. Users allocate capital across
+assets, run Monte Carlo risk simulations, receive AI critique, and compete on a
+seasonal leaderboard.
+
+Built with Next.js (App Router), React 19, TypeScript, Prisma 7, Tailwind CSS 4,
+Vitest, and Playwright.
+
+## Requirements
+
+- Node.js >= 20.9
+- A PostgreSQL database
+- An OpenAI API key (for the AI critique, debate, and risk routes)
 
 ## Getting Started
 
-First, run the development server:
-
 ```bash
+npm install          # also runs `prisma generate` via postinstall
+cp .env.example .env # then fill in DATABASE_URL and OPENAI_API_KEY
+npm run prisma:migrate
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Prisma Client is generated into `lib/generated/prisma` (git-ignored) and must be
+regenerated after any `prisma/schema.prisma` change.
 
 ## Scripts
 
-- `npm run dev` — start the development server
-- `npm run build` — production build
-- `npm run typecheck` — run the TypeScript compiler
-- `npm run test` — run unit and integration tests (Vitest)
-- `npm run test:e2e` — run end-to-end tests (Playwright)
-- `npm run lint` / `npm run format` — ESLint and Prettier
-- `npm run prisma:generate` / `npm run prisma:migrate` — Prisma Client and migrations
+### Develop
 
-Environment variables are documented in [`.env.example`](./.env.example); copy it to `.env` and fill in the values before running the app. Prisma Client is generated into `lib/generated/prisma` by the `postinstall` script.
+| Script          | Description                  |
+| --------------- | ---------------------------- |
+| `npm run dev`   | Start the development server |
+| `npm run build` | Production build             |
+| `npm start`     | Serve the production build   |
 
-## Learn More
+### Quality
 
-To learn more about Next.js, take a look at the following resources:
+| Script                            | Description                                    |
+| --------------------------------- | ---------------------------------------------- |
+| `npm run verify`                  | `format:check` + `lint` + `typecheck` + `test` |
+| `npm run typecheck`               | `tsc --noEmit`                                 |
+| `npm run lint` / `lint:fix`       | ESLint (flat config)                           |
+| `npm run format` / `format:check` | Prettier                                       |
+| `npm run fix`                     | Format, lint-fix, build, typecheck, test       |
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+### Testing
 
-## Data Handling
+| Script               | Description                              |
+| -------------------- | ---------------------------------------- |
+| `npm test`           | Unit and route tests (Vitest)            |
+| `npm run test:watch` | Vitest in watch mode                     |
+| `npm run test:smoke` | Operational maintenance route smoke test |
+| `npm run test:e2e`   | End-to-end tests (Playwright)            |
 
-- [Privacy and data handling policy](docs/privacy-and-data-handling.md)
-- [Launch operations runbook](docs/launch-operations-runbook.md)
+E2E specs live in `tests/e2e` and are excluded from Vitest. Set
+`PLAYWRIGHT_BASE_URL` to point at a non-local deployment.
 
-## Code Review Graph
+### Database
 
-Use these npm scripts to build, inspect, or serve the local code-review graph:
+| Script                    | Description                      |
+| ------------------------- | -------------------------------- |
+| `npm run prisma:generate` | Regenerate Prisma Client         |
+| `npm run prisma:migrate`  | Create and apply a dev migration |
+| `npm run prisma:studio`   | Open Prisma Studio               |
 
-```bash
-npm run graph:build
-npm run graph:status
-npm run graph:serve
-```
+### Operations
 
-The graph database lives in [`.code-review-graph/graph.db`](./.code-review-graph/graph.db) and is excluded from version control.
+These back the launch gates described in
+[the launch operations runbook](docs/launch-operations-runbook.md).
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+| Script                         | Description                                         |
+| ------------------------------ | --------------------------------------------------- |
+| `npm run ops:preflight`        | Verify required operator secrets are set            |
+| `npm run ops:preflight:strict` | Same, plus all optional variables                   |
+| `npm run ops:schema:drift`     | Fail if migrations and the schema have drifted      |
+| `npm run ops:restore:check`    | Validate a restored production backup               |
+| `npm run ops:monitoring:check` | Smoke-test the monitoring route for critical alerts |
 
-## Deploy on Vercel
+## Environment
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+All variables are documented in [`.env.example`](./.env.example). Required in
+production: `DATABASE_URL`, `OPENAI_API_KEY`, `CRON_SECRET`,
+`ADMIN_TRIGGER_SECRET`, and `RESET_TOKEN_SECRET`.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+`RESET_TOKEN_SECRET` signs password-reset tokens. The app refuses to start
+without it when `NODE_ENV=production`.
+
+## Deployment
+
+Deploy to Vercel. Scheduled jobs are defined in `vercel.json` and documented in
+[the cron runbook](docs/vercel-cron-jobs.md).
+
+Before promoting a release, run the launch gates: `ops:preflight`,
+`ops:schema:drift`, `ops:restore:check`, and `ops:monitoring:check`.
+
+## Further Reading
+
+- [Next.js documentation](https://nextjs.org/docs)
+- [Data handling and privacy](docs/privacy-and-data-handling.md)
