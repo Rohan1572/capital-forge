@@ -1,45 +1,51 @@
-# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
-
-# dependencies
+# Dependencies
 /node_modules
 /.pnp
 .pnp.*
-.yarn/*
-!.yarn/patches
-!.yarn/plugins
-!.yarn/releases
-!.yarn/versions
 package-lock.json
 
-# testing
+# Testing
 /coverage
 /test-results
+/playwright-report
+/blob-report
+/playwright/.cache
 
-# next.js
+# Next.js
 /.next/
 /out/
+/next-env.d.ts
 
-# production
+# Production
 /build
 
-# misc
-.DS_Store
-*.pem
+# Generated
+/lib/generated/prisma
 
-# debug
+# Env files (secrets stay local; the committed template is the source of truth)
+/.env
+/.env.*
+!/.env.example
+
+# Vercel
+.vercel
+
+# TypeScript
+*.tsbuildinfo
+
+# Logs
+*.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
-.pnpm-debug.log*
+pnpm-debug.log*
 
-# env files
-.env*
+# Misc
+.DS_Store
+Thumbs.db
+*.pem
 
-# vercel
-.vercel
-
-# typescript
-*.tsbuildinfo
-next-env.d.ts
-
-/lib/generated/prisma
+# Editors
+.idea
+.vscode/*
+!.vscode/extensions.json
