@@ -30,7 +30,7 @@
     "ops:monitoring:check": "node scripts/ops/check-monitoring-route.mjs"
   },
   "engines": {
-    "node": "^22.13.0 || >=24.0.0"
+    "node": "24.x"
   },
   "dependencies": {
     "@prisma/adapter-pg": "7.10.0",
@@ -61,8 +61,7 @@
     "vitest": "4.1.11"
   },
   "allowScripts": {
-    "prisma@7.10.0": true,
-    "@prisma/engines@7.10.0": true,
-    "unrs-resolver@1.12.2": true
+    "prisma": true,
+    "@prisma/engines": true
   }
 }

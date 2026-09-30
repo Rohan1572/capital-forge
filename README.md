@@ -9,7 +9,7 @@ Vitest, and Playwright.
 
 ## Requirements
 
-- Node.js ^22.13.0 or >=24
+- Node.js 24.x
 - A PostgreSQL database
 - An OpenRouter API key (for the AI critique, debate, and risk routes)
 
