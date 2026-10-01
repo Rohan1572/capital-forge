@@ -116,8 +116,11 @@ test("renders the dashboard snapshot sections when saved data exists", async ({
   await expect(page.getByText("Recent Performance", { exact: true })).toBeVisible();
   await expect(page.getByText("Recent Activity", { exact: true })).toBeVisible();
   await expect(page.getByText("equity 30%")).toBeVisible();
-  await expect(page.getByText("baseline strategy run")).toBeVisible();
-  await expect(page.getByText("Seed 42", { exact: true })).toBeVisible();
+
+  const recentActivity = page.locator("article").filter({ hasText: "Recent Activity" });
+  await expect(recentActivity.getByText("baseline strategy run")).toBeVisible();
+  await expect(recentActivity.getByText("Seed 42", { exact: true })).toBeVisible();
+
   await expect(page.getByText("No runs saved yet")).toHaveCount(0);
 });
 
