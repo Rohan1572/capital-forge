@@ -60,6 +60,10 @@
     "typescript-eslint": "8.70.0",
     "vitest": "4.1.11"
   },
+  "overrides": {
+    "deepmerge-ts": "8.0.0",
+    "mysql2": "3.23.1"
+  },
   "allowScripts": {
     "prisma": true,
     "@prisma/engines": true
