@@ -57,7 +57,7 @@ export type MonitoringDelivery = {
   alertTitles: string[];
 };
 
-export const DEFAULT_MONITORING_THRESHOLDS: MonitoringThresholds = {
+const DEFAULT_MONITORING_THRESHOLDS: MonitoringThresholds = {
   averageSimulationLatencyWarningMs: 1500,
   averageSimulationLatencyCriticalMs: 3000,
   totalAiEstimatedCostWarningUsd: 1,

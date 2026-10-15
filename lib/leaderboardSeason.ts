@@ -9,7 +9,7 @@ export function getCurrentUtcMonthLabel(referenceDate = new Date()) {
   return `${referenceDate.getUTCFullYear()}-${String(referenceDate.getUTCMonth() + 1).padStart(2, "0")}`;
 }
 
-export function isMonthLabel(value: string): value is `${number}-${number}` {
+function isMonthLabel(value: string): value is `${number}-${number}` {
   return /^\d{4}-\d{2}$/.test(value);
 }
 

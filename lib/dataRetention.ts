@@ -1,6 +1,6 @@
 import { prisma } from "./prisma";
 
-export const DATA_RETENTION_POLICY = {
+const DATA_RETENTION_POLICY = {
   sessionDeletionLagDays: 1,
   aiResponseLogRetentionDays: 90,
   simulationRunRetentionDays: 180,

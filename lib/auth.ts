@@ -29,7 +29,7 @@ export function isValidEmail(email: string) {
   return /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email);
 }
 
-export async function hashPassword(password: string) {
+async function hashPassword(password: string) {
   const salt = crypto.randomBytes(16).toString("hex");
   const derivedKey = await scryptHash(password, salt);
   return `${salt}:${derivedKey.toString("hex")}`;
