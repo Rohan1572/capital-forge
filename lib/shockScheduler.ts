@@ -1,5 +1,5 @@
 import { buildShockGeneratorPrompt } from "./aiPrompts";
-import { callOpenRouter, resolveOpenRouterConfig } from "./openrouter";
+import { callOpenRouter, resolveOpenRouterConfig, type OpenRouterJsonSchema } from "./openrouter";
 
 type ShockModifiers = {
   meanShift: number;
@@ -16,14 +16,14 @@ export type ShockGenerationContext = {
   recentConditions?: string;
 };
 
-export type GeneratedShock = {
+type GeneratedShock = {
   title: string;
   description: string;
   marketImpact: string[];
   modifiers: ShockModifiers;
 };
 
-export type ShockAiMeta = {
+type ShockAiMeta = {
   model: string;
   latencyMs: number;
   usage?: {
@@ -132,15 +132,17 @@ async function generateShock(context: ShockGenerationContext): Promise<{
 
   const prompt = buildShockGeneratorPrompt(context);
 
+  const jsonSchema: OpenRouterJsonSchema = {
+    name: "weekly_shock",
+    description: "Weekly macro shock scenario with market impact bullets and modifiers.",
+    schema: buildShockSchema(),
+  };
+
   const call = await callOpenRouter({
     config: openRouterConfig.config,
     label: "shock generator",
     prompt,
-    jsonSchema: {
-      name: "weekly_shock",
-      description: "Weekly macro shock scenario with market impact bullets and modifiers.",
-      schema: buildShockSchema(),
-    },
+    jsonSchema,
   });
 
   return {

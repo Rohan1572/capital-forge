@@ -6,7 +6,11 @@ import {
   getCurrentUtcMonthLabel,
 } from "@/lib/leaderboardSeason";
 import { getActiveShock } from "@/lib/shocks";
-import { buildLeaderboardResponse } from "@/lib/apiResponses";
+import {
+  buildLeaderboardResponse,
+  type LeaderboardActiveShockSummary,
+  type LeaderboardSeasonSummary,
+} from "@/lib/apiResponses";
 
 type StrategyMetrics = {
   expectedReturn: number | null;
@@ -37,16 +41,6 @@ type StrategyRow = {
   allocation: unknown;
   metrics: unknown;
   createdAt: Date;
-};
-
-type ActiveShockSummary = {
-  id: string;
-  title: string;
-};
-
-type LeaderboardSeasonSummary = {
-  activeMonth: string;
-  currentMonth: string;
 };
 
 function toMetricNumber(value: unknown): number | null {
@@ -187,7 +181,7 @@ export async function GET(request: Request) {
       },
     });
 
-    const activeShockSummary: ActiveShockSummary | null = activeShock
+    const activeShockSummary: LeaderboardActiveShockSummary | null = activeShock
       ? {
           id: activeShock.id,
           title: activeShock.title,

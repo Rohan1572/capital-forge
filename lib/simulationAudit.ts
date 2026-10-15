@@ -1,7 +1,7 @@
 import {
   type AssetReturnAssumption,
   type AssetReturnAssumptions,
-  type SimulationRegimes,
+  type CrashRegime,
 } from "./assetAssumptions";
 import type { ShockParameters } from "./shockEngine";
 import {
@@ -111,7 +111,7 @@ export function parseSimulationAssumptionsSnapshot(
       crash: {
         probability: crash.probability,
         volatilityMultiplier: crash.volatilityMultiplier,
-        shocks: crash.shocks as SimulationRegimes["crash"]["shocks"],
+        shocks: crash.shocks as CrashRegime["shocks"],
       },
     },
   };

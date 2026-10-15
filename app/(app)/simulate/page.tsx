@@ -22,7 +22,7 @@ import { baseCorrelationMatrix } from "@/lib/correlationMatrix";
 import type { DebateAgentCall } from "@/lib/debateEngine";
 import { RISK_FREE_RATE } from "@/lib/env";
 import { buildSimulationAuditSnapshot } from "@/lib/simulationAudit";
-import type { ShockParameters } from "@/lib/shockEngine";
+import type { CorrelationShiftMatrix, ShockParameters } from "@/lib/shockEngine";
 
 const simulationCache = new TTLCache<number[]>({ ttlMs: 2 * 60 * 1000, maxSize: 20 });
 
@@ -360,8 +360,7 @@ function getActiveShockFromResponse(payload: ActiveShockApiResponse): ShockParam
     meanShiftByAsset: modifiers.meanShiftByAsset as ShockParameters["meanShiftByAsset"],
     volatilityMultiplierByAsset:
       modifiers.volatilityMultiplierByAsset as ShockParameters["volatilityMultiplierByAsset"],
-    correlationShiftByAsset:
-      modifiers.correlationShiftByAsset as ShockParameters["correlationShiftByAsset"],
+    correlationShiftByAsset: modifiers.correlationShiftByAsset as CorrelationShiftMatrix,
   };
 }
 

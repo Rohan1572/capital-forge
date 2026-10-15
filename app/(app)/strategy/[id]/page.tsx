@@ -6,8 +6,10 @@ import { RiskExplainerPanel } from "@/components/RiskExplainerPanel";
 import { StrategyActionsPanel } from "@/components/StrategyActionsPanel";
 import { SimulationChart } from "@/components/SimulationChart";
 import type { Allocation } from "@/lib/monteCarlo";
+import type { OpenRouterUsage } from "@/lib/openrouter";
 
 import type { SimulationMetrics } from "@/lib/metrics";
+import type { ReplaySeriesInfo } from "@/lib/replaySeries";
 import type { ShockParameters } from "@/lib/shockEngine";
 import { loadReplaySeries as loadStrategyReplaySeries } from "@/lib/replaySeries";
 import { buildStrategyCardSubtitle, buildStrategyDisplayLabel } from "@/lib/strategyPresentation";
@@ -26,11 +28,7 @@ type AiRiskMeta = {
   model: string;
   latencyMs: number;
   cached?: boolean;
-  usage?: {
-    inputTokens?: number;
-    outputTokens?: number;
-    totalTokens?: number;
-  };
+  usage?: OpenRouterUsage;
 };
 
 type StrategyRecord = {
@@ -389,7 +387,9 @@ export default async function StrategyPage({ params }: Readonly<StrategyPageProp
   const allocation = strategy.allocation as Allocation;
   const metrics = strategy.metrics as SimulationMetrics;
   const aiRiskSummary = await loadAiRiskSummary(allocation, metrics);
-  const { replaySeries, warning: replayWarning } = loadReplaySeries(strategy);
+  const replayResult = loadReplaySeries(strategy);
+  const replaySeries: ReplaySeriesInfo | null = replayResult.replaySeries;
+  const replayWarning = replayResult.warning;
   const assumptionsSnapshot = parseSimulationAssumptionsSnapshot(strategy.assumptions);
   const shockContext = parseShockSnapshot(strategy.shockModifiers ?? strategy.simulationShock);
   const strategyDisplayLabel = buildStrategyDisplayLabel(strategy);

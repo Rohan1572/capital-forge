@@ -1,7 +1,7 @@
 import { type InputJsonValue } from "@prisma/client/runtime/client";
 import { prisma } from "@/lib/prisma";
 
-export type AiResponseLogKind = "risk" | "debate";
+type AiResponseLogKind = "risk" | "debate";
 
 export type AiResponseLogPayload = {
   kind: AiResponseLogKind;

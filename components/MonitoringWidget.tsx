@@ -2,14 +2,11 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { StatePanel } from "@/components/StatePanel";
-
-type MonitoringAlert = {
-  key: "simulation-latency" | "ai-cost";
-  severity: "warning" | "critical";
-  title: string;
-  message: string;
-  recommendation: string;
-};
+import type {
+  MonitoringAlert,
+  MonitoringAlertSeverity,
+  MonitoringReportStatus,
+} from "@/lib/monitoring";
 
 type MonitoringReport = {
   simulationCount: number;
@@ -20,7 +17,7 @@ type MonitoringReport = {
   totalAiTokens: number;
   aiResponseCountByKind: Record<string, number>;
   lookbackDays: number;
-  status: "healthy" | "warning" | "critical";
+  status: MonitoringReportStatus;
   alerts: MonitoringAlert[];
 };
 
@@ -41,7 +38,7 @@ type MonitoringResponse = {
   data?: MonitoringPayload;
 };
 
-type MonitoringStatus = MonitoringReport["status"] | "loading";
+type MonitoringStatus = MonitoringReportStatus | "loading";
 
 function formatCurrency(value: number) {
   return new Intl.NumberFormat("en-US", {
@@ -76,7 +73,7 @@ function statusClassName(status: MonitoringStatus) {
   return "border-emerald-500/40 bg-emerald-950/30 text-emerald-100";
 }
 
-function alertClassName(severity: MonitoringAlert["severity"]) {
+function alertClassName(severity: MonitoringAlertSeverity) {
   return severity === "critical"
     ? "border-rose-500/30 bg-rose-950/20 text-rose-100"
     : "border-amber-500/30 bg-amber-950/20 text-amber-100";

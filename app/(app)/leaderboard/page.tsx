@@ -6,6 +6,11 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { SkeletonBlock, SkeletonStack } from "@/components/LoadingSkeleton";
 import { StatePanel } from "@/components/StatePanel";
 import { MetricLabel } from "@/components/MetricLabel";
+import type {
+  LeaderboardActiveShockSummary,
+  LeaderboardPaginationSummary,
+  LeaderboardSeasonSummary,
+} from "@/lib/apiResponses";
 
 type LeaderboardMetrics = {
   expectedReturn: number | null;
@@ -22,23 +27,6 @@ type LeaderboardEntry = {
   metrics: LeaderboardMetrics;
   createdAt: string;
   rank: number;
-};
-
-type Pagination = {
-  page: number;
-  pageSize: number;
-  total: number;
-  totalPages: number;
-};
-
-type ActiveShockSummary = {
-  id: string;
-  title: string;
-};
-
-type LeaderboardSeasonSummary = {
-  activeMonth: string;
-  currentMonth: string;
 };
 
 function formatPercent(value?: number | null) {
@@ -144,13 +132,13 @@ export default function LeaderboardPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
-  const [pagination, setPagination] = useState<Pagination>({
+  const [pagination, setPagination] = useState<LeaderboardPaginationSummary>({
     page: 1,
     pageSize: 25,
     total: 0,
     totalPages: 1,
   });
-  const [activeShock, setActiveShock] = useState<ActiveShockSummary | null>(null);
+  const [activeShock, setActiveShock] = useState<LeaderboardActiveShockSummary | null>(null);
   const [season, setSeason] = useState<LeaderboardSeasonSummary | null>(null);
 
   const effectiveMonth = month ?? season?.activeMonth ?? getCurrentMonthLabel();
@@ -182,8 +170,8 @@ export default function LeaderboardPage() {
 
         const payload = (await response.json()) as {
           data: LeaderboardEntry[];
-          pagination: Pagination;
-          activeShock?: ActiveShockSummary | null;
+          pagination: LeaderboardPaginationSummary;
+          activeShock?: LeaderboardActiveShockSummary | null;
           season?: LeaderboardSeasonSummary | null;
           month?: string;
         };
