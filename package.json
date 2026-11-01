@@ -30,7 +30,7 @@
     "ops:monitoring:check": "node scripts/ops/check-monitoring-route.mjs"
   },
   "engines": {
-    "node": "24.x"
+    "node": "26.x"
   },
   "dependencies": {
     "@prisma/adapter-pg": "7.10.0",
