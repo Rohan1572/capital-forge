@@ -209,6 +209,7 @@ describe("callOpenRouter", () => {
   });
 
   it("treats a provider error inside a 200 response as an upstream failure", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
     const fetchSpy = vi
       .spyOn(globalThis, "fetch")
       .mockImplementation(async () => jsonResponse({ error: { message: "No endpoints" } }));
@@ -238,6 +239,7 @@ describe("callOpenRouter", () => {
 
   it("captures the provider rate-limit reset time on a 429", async () => {
     const resetAt = Date.now() + 4 * 60 * 60 * 1000;
+    vi.spyOn(console, "error").mockImplementation(() => {});
     const fetchSpy = vi.spyOn(globalThis, "fetch").mockImplementation(
       async () =>
         new Response("rate limited", {
@@ -257,6 +259,7 @@ describe("callOpenRouter", () => {
   });
 
   it("throws OpenRouterUpstreamError carrying the status", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
     const fetchSpy = vi
       .spyOn(globalThis, "fetch")
       .mockImplementation(async () => new Response("nope", { status: 401 }));

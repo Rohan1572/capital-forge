@@ -215,6 +215,7 @@ describe("admin routes", () => {
   });
 
   it("returns a 500 when the leaderboard rollover receives an invalid month label", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
     mocks.setLeaderboardSeason.mockRejectedValue(new Error("Invalid month label: 2026-5"));
 
     const response = await postAdminRollover(

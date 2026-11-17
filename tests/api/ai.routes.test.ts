@@ -96,6 +96,7 @@ describe("AI routes when OpenRouter rejects the key", () => {
   });
 
   it("surfaces a 503 configuration error rather than a generic 500", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
     const fetchSpy = vi
       .spyOn(globalThis, "fetch")
       .mockImplementation(async () => unauthorizedResponse());

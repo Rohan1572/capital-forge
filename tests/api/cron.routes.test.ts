@@ -43,10 +43,7 @@ import {
   GET as getRetentionCron,
   POST as postRetentionCron,
 } from "../../app/api/cron/retention/route";
-import {
-  GET as getLeaderboardCron,
-  POST as postLeaderboardCron,
-} from "../../app/api/cron/leaderboard/monthly/route";
+import { POST as postLeaderboardCron } from "../../app/api/cron/leaderboard/monthly/route";
 import { POST as postShockCron } from "../../app/api/cron/shocks/weekly/route";
 
 function resetMocks() {
@@ -173,6 +170,7 @@ describe("cron routes", () => {
   });
 
   it("returns a 500 when the retention sweep fails", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
     mocks.runRetentionSweep.mockRejectedValue(new Error("database unavailable"));
 
     const response = await postRetentionCron(
@@ -218,13 +216,14 @@ describe("cron routes", () => {
   });
 
   it("returns a 500 when the leaderboard cron receives an invalid month", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
     mocks.setLeaderboardSeason.mockRejectedValue(new Error("Invalid month label: 2026-5"));
 
-    const response = await getLeaderboardCron(
+    const response = await postLeaderboardCron(
       createJsonRequest(
         "/api/cron/leaderboard/monthly",
-        "GET",
-        undefined,
+        "POST",
+        { month: "2026-5" },
         sameOriginHeaders({
           authorization: "Bearer cron-secret",
         }),

@@ -82,14 +82,31 @@ function choleskyDecomposition(matrix: number[][]): number[][] {
 
 const baseCorrelationArray = buildCorrelationArray(baseCorrelationMatrix);
 const baseCholesky = choleskyDecomposition(baseCorrelationArray);
+const shockCholeskyCache = new WeakMap<
+  ShockParameters,
+  { correlationKey: string; cholesky: number[][] }
+>();
 
 function getCholeskyForShock(shock?: ShockParameters): number[][] {
   if (!shock) {
     return baseCholesky;
   }
 
+  const correlationKey = [
+    shock.correlationShift,
+    ...assetKeys.flatMap((rowKey) =>
+      assetKeys.map((colKey) => shock.correlationShiftByAsset?.[rowKey]?.[colKey] ?? 0),
+    ),
+  ].join(",");
+  const cached = shockCholeskyCache.get(shock);
+  if (cached?.correlationKey === correlationKey) {
+    return cached.cholesky;
+  }
+
   const shockedCorrelation = applyShockToCorrelation(baseCorrelationMatrix, shock);
-  return choleskyDecomposition(buildCorrelationArray(shockedCorrelation));
+  const cholesky = choleskyDecomposition(buildCorrelationArray(shockedCorrelation));
+  shockCholeskyCache.set(shock, { correlationKey, cholesky });
+  return cholesky;
 }
 
 type RandomSource = () => number;

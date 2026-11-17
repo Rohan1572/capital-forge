@@ -43,7 +43,11 @@ function downloadStrategy(strategy: StrategyActionsStrategy, note: string | null
 
 export function StrategyActionsPanel({ strategy }: StrategyActionsPanelProps) {
   const router = useRouter();
-  const storedNote = globalThis.localStorage.getItem(`strategy-note:${strategy.id}`);
+  const [storedNote] = useState<string | null>(() =>
+    typeof window === "undefined"
+      ? null
+      : globalThis.localStorage.getItem(`strategy-note:${strategy.id}`),
+  );
   const [note, setNote] = useState(storedNote ?? "");
   const [savedNote, setSavedNote] = useState<string | null>(storedNote);
   const [isCloning, setIsCloning] = useState(false);
